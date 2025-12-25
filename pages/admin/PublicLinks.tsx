@@ -112,14 +112,14 @@ export const PublicLinks: React.FC = () => {
       {links?.default && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <LinkIcon size={20} className="text-indigo-600" />
+            <LinkIcon size={20} className="text-orange-600" />
             <h3 className="text-lg font-semibold text-gray-900">Link Padrão</h3>
             <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
               Sempre Ativo
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-sm">
+            <div className="bg-white p-4 rounded-xl border border-orange-200 shadow-sm">
               <div className="text-xs text-gray-500 mb-1">Fila de Espera</div>
               <div className="font-mono text-sm text-gray-700 mb-3 break-all">
                 {baseUrl}{links.default.queueUrl}
@@ -149,7 +149,7 @@ export const PublicLinks: React.FC = () => {
                 </Button>
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-sm">
+            <div className="bg-white p-4 rounded-xl border border-orange-200 shadow-sm">
               <div className="text-xs text-gray-500 mb-1">Reservas</div>
               <div className="font-mono text-sm text-gray-700 mb-3 break-all">
                 {baseUrl}{links.default.reservationUrl}
@@ -179,7 +179,7 @@ export const PublicLinks: React.FC = () => {
                 </Button>
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-sm">
+            <div className="bg-white p-4 rounded-xl border border-orange-200 shadow-sm">
               <div className="text-xs text-gray-500 mb-1">Menu</div>
               <div className="font-mono text-sm text-gray-700 mb-3 break-all">
                 {baseUrl}{links.default.menuUrl}
@@ -216,7 +216,7 @@ export const PublicLinks: React.FC = () => {
       {/* Links Personalizados */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <LinkIcon size={20} className="text-indigo-600" />
+          <LinkIcon size={20} className="text-orange-600" />
           <h3 className="text-lg font-semibold text-gray-900">Links Personalizados</h3>
         </div>
         {links?.custom && links.custom.length > 0 ? (
@@ -265,7 +265,7 @@ export const PublicLinks: React.FC = () => {
               type="text"
               value={linkName}
               onChange={(e) => setLinkName(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
               placeholder="Ex: Instagram, WhatsApp, Cardápio Digital"
             />
             <p className="text-xs text-gray-500 mt-1">

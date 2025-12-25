@@ -60,17 +60,17 @@ export const QueueManager: React.FC = () => {
     <div className="space-y-6">
       {/* Links Públicos Section */}
       {queueUrl && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <LinkIcon size={20} className="text-indigo-600" />
+                <LinkIcon size={20} className="text-orange-600" />
                 <h3 className="font-bold text-gray-900">Link Público da Fila</h3>
               </div>
               <p className="text-sm text-gray-600 mb-3">
                 Compartilhe este link com seus clientes para que eles entrem na fila virtualmente.
               </p>
-              <div className="bg-white p-3 rounded-lg border border-indigo-200 font-mono text-sm text-gray-700 break-all mb-3">
+              <div className="bg-white p-3 rounded-lg border border-orange-200 font-mono text-sm text-gray-700 break-all mb-3">
                 {queueUrl}
               </div>
               <div className="flex gap-2">
@@ -120,7 +120,7 @@ export const QueueManager: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="text-gray-500 text-xs font-medium uppercase mb-1">Aguardando</div>
-          <div className="text-2xl font-bold text-indigo-600">{queue.filter(i => i.status === QueueStatus.WAITING).length}</div>
+          <div className="text-2xl font-bold text-orange-600">{queue.filter(i => i.status === QueueStatus.WAITING).length}</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="text-gray-500 text-xs font-medium uppercase mb-1">Notificados</div>
@@ -128,7 +128,7 @@ export const QueueManager: React.FC = () => {
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="text-gray-500 text-xs font-medium uppercase mb-1">Chamados</div>
-          <div className="text-2xl font-bold text-blue-600">{queue.filter(i => i.status === QueueStatus.CALLED).length}</div>
+          <div className="text-2xl font-bold text-orange-600">{queue.filter(i => i.status === QueueStatus.CALLED).length}</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="text-gray-500 text-xs font-medium uppercase mb-1">Concluídos</div>
@@ -168,7 +168,7 @@ export const QueueManager: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       {item.manualOrder && (
-                        <span className="text-xs text-indigo-600 font-bold" title="Ordem manual">⚡</span>
+                        <span className="text-xs text-orange-600 font-bold" title="Ordem manual">⚡</span>
                       )}
                       <div>
                         <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
@@ -196,7 +196,7 @@ export const QueueManager: React.FC = () => {
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                       ${item.status === QueueStatus.WAITING ? 'bg-yellow-100 text-yellow-800' : ''}
                       ${item.status === QueueStatus.NOTIFIED ? 'bg-amber-100 text-amber-800' : ''}
-                      ${item.status === QueueStatus.CALLED ? 'bg-blue-100 text-blue-800' : ''}
+                      ${item.status === QueueStatus.CALLED ? 'bg-orange-100 text-orange-800' : ''}
                       ${item.status === QueueStatus.DONE ? 'bg-green-100 text-green-800' : ''}
                       ${item.status === QueueStatus.CANCELLED ? 'bg-gray-100 text-gray-800' : ''}
                       ${item.status === QueueStatus.NO_SHOW ? 'bg-red-100 text-red-800' : ''}
@@ -222,7 +222,7 @@ export const QueueManager: React.FC = () => {
                           </button>
                           <button 
                             onClick={() => updateQueueStatus(item.id, QueueStatus.CALLED)}
-                            className="text-indigo-600 hover:text-indigo-900 font-semibold"
+                            className="text-orange-600 hover:text-orange-900 font-semibold"
                           >
                             Chamar
                           </button>
@@ -231,7 +231,7 @@ export const QueueManager: React.FC = () => {
                       {item.status === QueueStatus.NOTIFIED && (
                         <button 
                           onClick={() => updateQueueStatus(item.id, QueueStatus.CALLED)}
-                          className="text-indigo-600 hover:text-indigo-900 font-semibold"
+                          className="text-orange-600 hover:text-orange-900 font-semibold"
                         >
                           Chamar
                         </button>
@@ -289,7 +289,7 @@ export const QueueManager: React.FC = () => {
               type="text" 
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
               placeholder="Ex: João Silva"
             />
           </div>
@@ -300,7 +300,7 @@ export const QueueManager: React.FC = () => {
               type="tel" 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
               placeholder="(11) 99999-9999"
             />
           </div>
@@ -310,7 +310,7 @@ export const QueueManager: React.FC = () => {
             <select 
               value={partySize}
               onChange={(e) => setPartySize(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
             >
               {[1,2,3,4,5,6,7,8,9,10,12,15].map(n => (
                 <option key={n} value={n}>{n} pessoas</option>

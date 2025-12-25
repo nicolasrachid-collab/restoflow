@@ -38,11 +38,11 @@ export const LinkCard: React.FC<LinkCardProps> = ({
   };
 
   return (
-    <div className={`bg-white p-6 rounded-xl border-2 ${link.isActive ? 'border-indigo-200' : 'border-gray-200 opacity-60'} shadow-sm`}>
+    <div className={`bg-white p-6 rounded-xl border-2 ${link.isActive ? 'border-orange-200' : 'border-gray-200 opacity-60'} shadow-sm`}>
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <LinkIcon size={18} className="text-indigo-600" />
+            <LinkIcon size={18} className="text-orange-600" />
             <h3 className="font-bold text-gray-900">
               {link.name || `Link ${link.code.substring(0, 4)}`}
             </h3>

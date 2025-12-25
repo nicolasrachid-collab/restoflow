@@ -89,6 +89,7 @@ export interface QueueItem {
   customerName: string;
   partySize: number;
   phone: string;
+  email?: string;
   status: QueueStatus;
   joinedAt: Date;
   notifiedAt?: Date;

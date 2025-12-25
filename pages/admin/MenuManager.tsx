@@ -145,7 +145,7 @@ export const MenuManager: React.FC = () => {
                 type="text" 
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="Ex: Pizza Margherita"
               />
             </div>
@@ -156,7 +156,7 @@ export const MenuManager: React.FC = () => {
                 type="number" 
                 value={newItemPrice}
                 onChange={(e) => setNewItemPrice(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="0.00"
               />
             </div>
@@ -167,7 +167,7 @@ export const MenuManager: React.FC = () => {
                 <button 
                   onClick={handleGenerateDescription}
                   disabled={generatingDesc}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
+                  className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1 font-medium"
                 >
                   <Wand2 size={12} /> Gerar com IA
                 </button>
@@ -176,7 +176,7 @@ export const MenuManager: React.FC = () => {
                 value={newItemDesc}
                 onChange={(e) => setNewItemDesc(e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 placeholder="Descrição detalhada do prato..."
               />
             </div>
@@ -210,7 +210,7 @@ export const MenuManager: React.FC = () => {
                      <select 
                         value={imgSize}
                         onChange={(e) => setImgSize(e.target.value as ImageSize)}
-                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 mr-2"
+                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 mr-2"
                      >
                         <option value={ImageSize.SIZE_1K}>1K (Rápido)</option>
                         <option value={ImageSize.SIZE_2K}>2K (HD)</option>
@@ -247,11 +247,11 @@ export const MenuManager: React.FC = () => {
               <div className="flex-1">
                 <div className="flex justify-between items-start">
                   <h4 className="font-bold text-gray-900">{item.name}</h4>
-                  <span className="font-bold text-indigo-600">R$ {item.price.toFixed(2)}</span>
+                  <span className="font-bold text-orange-600">R$ {item.price.toFixed(2)}</span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                 <div className="mt-3 flex gap-2">
-                  <button className="text-xs text-indigo-600 font-medium hover:text-indigo-800" onClick={() => handleEditClick(item)}>Editar</button>
+                  <button className="text-xs text-orange-600 font-medium hover:text-orange-800" onClick={() => handleEditClick(item)}>Editar</button>
                   <button className="text-xs text-red-600 font-medium hover:text-red-800" onClick={() => removeMenuItem(item.id)}>Excluir</button>
                 </div>
               </div>
@@ -273,7 +273,7 @@ export const MenuManager: React.FC = () => {
               type="text" 
               value={editItemName}
               onChange={(e) => setEditItemName(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -283,7 +283,7 @@ export const MenuManager: React.FC = () => {
               type="number" 
               value={editItemPrice}
               onChange={(e) => setEditItemPrice(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -293,7 +293,7 @@ export const MenuManager: React.FC = () => {
               <button 
                 onClick={handleGenerateEditDescription}
                 disabled={generatingDesc}
-                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
+                className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1 font-medium"
               >
                 <Wand2 size={12} /> Gerar com IA
               </button>
@@ -302,7 +302,7 @@ export const MenuManager: React.FC = () => {
               value={editItemDesc}
               onChange={(e) => setEditItemDesc(e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
             />
           </div>
 

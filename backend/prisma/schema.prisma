@@ -185,6 +185,7 @@ model QueueItem {
   id           String      @id @default(uuid())
   customerName String      @map("customer_name")
   phone        String
+  email        String?
   partySize    Int         @map("party_size")
   status       QueueStatus @default(WAITING)
   restaurantId String      @map("restaurant_id")

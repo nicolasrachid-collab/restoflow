@@ -37,7 +37,7 @@ export const PublicMenu: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen text-indigo-600 bg-gray-50">
+      <div className="flex justify-center items-center h-screen text-orange-600 bg-gray-50">
         <Loader2 className="animate-spin" size={40} />
       </div>
     );
@@ -54,7 +54,7 @@ export const PublicMenu: React.FC = () => {
             placeholder="Buscar pratos, bebidas..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-none bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 shadow-sm outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-none bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-orange-500/20 shadow-sm outline-none transition-all"
           />
         </div>
         
@@ -65,7 +65,7 @@ export const PublicMenu: React.FC = () => {
               onClick={() => setActiveCategory(cat)}
               className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 ease-out ${
                 activeCategory === cat 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 scale-105' 
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20 scale-105' 
                   : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 hover:border-gray-300'
               }`}
             >
@@ -116,7 +116,7 @@ export const PublicMenu: React.FC = () => {
 
             {/* Conteúdo */}
             <div className="p-6 flex flex-col flex-1 relative">
-               <h3 className="font-bold text-xl text-gray-900 leading-tight mb-2 group-hover:text-indigo-600 transition-colors">
+               <h3 className="font-bold text-xl text-gray-900 leading-tight mb-2 group-hover:text-orange-600 transition-colors">
                  {item.name}
                </h3>
                
@@ -127,7 +127,7 @@ export const PublicMenu: React.FC = () => {
                {/* Botão de Adicionar Flutuante no Card */}
                <div className="flex justify-end mt-auto pt-2">
                  <button 
-                   className="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-200 flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:bg-indigo-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                   className="w-12 h-12 bg-orange-600 text-white rounded-full shadow-lg shadow-orange-200 flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:bg-orange-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-100"
                    aria-label={`Adicionar ${item.name}`}
                  >
                     <Plus size={24} strokeWidth={2.5} />

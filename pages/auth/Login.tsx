@@ -57,7 +57,7 @@ export const Login: React.FC = () => {
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-indigo-100 text-indigo-600 mb-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-orange-100 text-orange-600 mb-2">
             <Utensils size={24} />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">RestoFlow Admin</h1>
@@ -84,7 +84,7 @@ export const Login: React.FC = () => {
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               placeholder="admin@exemplo.com"
               required
             />
@@ -98,7 +98,7 @@ export const Login: React.FC = () => {
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               placeholder="••••••••"
               required
             />
@@ -110,7 +110,7 @@ export const Login: React.FC = () => {
         </form>
 
         <div className="text-center text-sm text-gray-500 mt-4">
-           Não tem uma conta? <Link to="/register" className="text-indigo-600 font-medium hover:underline">Criar conta grátis</Link>
+           Não tem uma conta? <Link to="/register" className="text-orange-600 font-medium hover:underline">Criar conta grátis</Link>
         </div>
         
         <div className="text-center text-xs text-gray-400 mt-2">

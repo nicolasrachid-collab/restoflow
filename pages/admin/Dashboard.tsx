@@ -58,9 +58,9 @@ export const Dashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">
                 <div className="text-gray-500 text-sm font-medium">Reservas Hoje</div>
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><CalendarDays size={16}/></div>
+                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><CalendarDays size={16}/></div>
             </div>
-            <div className="text-3xl font-bold text-indigo-600">{todayReservations}</div>
+            <div className="text-3xl font-bold text-orange-600">{todayReservations}</div>
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -83,7 +83,7 @@ export const Dashboard: React.FC = () => {
               cursor={{fill: 'transparent'}}
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
             />
-            <Bar dataKey="clientes" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+            <Bar dataKey="clientes" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={40} />
           </BarChart>
         </ResponsiveContainer>
       </div>

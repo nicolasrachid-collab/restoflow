@@ -31,8 +31,8 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-indigo-600 flex items-center gap-2">
-            <span className="p-1 bg-indigo-100 rounded">RF</span> RestoFlow
+          <h1 className="text-xl font-bold text-orange-600 flex items-center gap-2">
+            <span className="p-1 bg-orange-100 rounded">RF</span> RestoFlow
           </h1>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-500">
             <X size={24} />
@@ -58,7 +58,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
                 onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive 
-                    ? 'bg-indigo-50 text-indigo-700' 
+                    ? 'bg-orange-50 text-orange-700' 
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
@@ -80,7 +80,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto w-full">
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center md:hidden sticky top-0 z-10">
-           <h1 className="text-lg font-bold text-indigo-600">RestoFlow</h1>
+           <h1 className="text-lg font-bold text-orange-600">RestoFlow</h1>
            <button onClick={() => setIsSidebarOpen(true)} className="text-gray-500 p-1">
              <MenuIcon size={24} />
            </button>

@@ -146,7 +146,7 @@ export const PublicReservation: React.FC = () => {
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
               placeholder="seu@email.com"
             />
             <p className="text-xs text-gray-500 mt-1">
@@ -230,7 +230,7 @@ export const PublicReservation: React.FC = () => {
                   }
                   setDate(selectedDate);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
             />
         </div>
              <div>
@@ -238,7 +238,7 @@ export const PublicReservation: React.FC = () => {
                 <select 
                     value={partySize}
                     onChange={(e) => setPartySize(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                     {[1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
                     <option key={n} value={n}>{n} pax</option>
@@ -257,8 +257,8 @@ export const PublicReservation: React.FC = () => {
                         onClick={() => setTime(t)}
                         className={`py-2 text-sm font-medium rounded-lg border transition-colors ${
                             time === t 
-                            ? 'bg-indigo-600 text-white border-indigo-600' 
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                            ? 'bg-orange-600 text-white border-orange-600' 
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300'
                         }`}
                     >
                         {t}
@@ -275,7 +275,7 @@ export const PublicReservation: React.FC = () => {
                     type="text" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                     placeholder="Ex: Ana Souza"
                 />
             </div>
@@ -287,7 +287,7 @@ export const PublicReservation: React.FC = () => {
                     type="tel" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                     placeholder="(11) 99999-9999"
                 />
             </div>
@@ -298,7 +298,7 @@ export const PublicReservation: React.FC = () => {
                     rows={2}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                     placeholder="Cadeira de bebê, aniversário..."
                 />
             </div>

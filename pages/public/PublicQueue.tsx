@@ -167,48 +167,6 @@ export const PublicQueue: React.FC = () => {
     await joinQueueWithCustomer(customer.id);
   };
 
-  if (view === 'EMAIL') {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="text-center space-y-2 mb-8">
-          <h2 className="text-xl font-bold text-gray-900">Quase lá!</h2>
-          <p className="text-sm text-gray-500">Complete seu cadastro para facilitar futuras visitas.</p>
-        </div>
-
-        <form onSubmit={handleEmailSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-gray-400 text-xs">(Opcional)</span>
-            </label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="seu@email.com"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Seu email será usado apenas para notificações e facilitar futuras reservas.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button 
-              type="button"
-              variant="ghost" 
-              onClick={handleSkipEmail}
-              className="flex-1"
-            >
-              Pular
-            </Button>
-            <Button type="submit" className="flex-1" isLoading={loading}>
-              <Mail size={18} className="mr-2"/> Continuar
-            </Button>
-          </div>
-        </form>
-      </div>
-    );
-  }
 
   if (view === 'STATUS') {
     const groupsAhead = Math.max(0, position - 1);
@@ -221,20 +179,29 @@ export const PublicQueue: React.FC = () => {
         
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Você está na fila!</h2>
-          <p className="text-gray-500">Acompanhe por aqui ou aguarde nosso SMS.</p>
+          <p className="text-gray-500">Acompanhe por aqui ou aguarde nossas notificações por email e WhatsApp.</p>
+        </div>
+
+        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+          <p className="text-sm text-orange-800">
+            <strong>Notificações automáticas:</strong><br/>
+            • Você será avisado quando faltarem 3 grupos na sua frente<br/>
+            • Você será avisado quando for o próximo<br/>
+            • Você será avisado quando sua mesa estiver pronta
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4 py-6 border-t border-b border-gray-100">
            <div>
              <div className="text-xs text-gray-400 uppercase font-semibold">Sua Posição</div>
-             <div className="text-3xl font-bold text-indigo-600">#{position}</div>
+             <div className="text-3xl font-bold text-orange-600">#{position}</div>
              {groupsAhead > 0 && (
                <div className="text-xs text-gray-500 mt-1">{groupsAhead} grupo{groupsAhead !== 1 ? 's' : ''} na frente</div>
              )}
            </div>
            <div>
              <div className="text-xs text-gray-400 uppercase font-semibold">Tempo Estimado</div>
-             <div className="text-3xl font-bold text-indigo-600">{estimatedWaitMinutes} min</div>
+             <div className="text-3xl font-bold text-orange-600">{estimatedWaitMinutes} min</div>
              <div className="text-xs text-gray-500 mt-1">{waitingCount} grupo{waitingCount !== 1 ? 's' : ''} aguardando</div>
            </div>
         </div>
@@ -242,7 +209,7 @@ export const PublicQueue: React.FC = () => {
         <div className="bg-amber-50 p-3 rounded-lg flex items-start gap-2 text-left">
            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
            <p className="text-xs text-amber-800">
-             Atualizamos esta tela automaticamente. Por favor, apresente-se na recepção quando receber o aviso.
+             Atualizamos esta tela automaticamente. Você também receberá notificações por email e WhatsApp. Por favor, apresente-se na recepção quando receber o aviso.
            </p>
         </div>
 
@@ -258,6 +225,22 @@ export const PublicQueue: React.FC = () => {
         <p className="text-sm text-gray-500">Junte-se a outros grupos aguardando mesa.</p>
       </div>
 
+      {/* Informações da Fila */}
+      {queueInfo && (
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6 mb-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-orange-600 mb-1">{queueInfo.waitingCount}</div>
+              <div className="text-sm text-gray-600">Pessoas na fila</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-orange-600 mb-1">{queueInfo.averageWaitMinutes}</div>
+              <div className="text-sm text-gray-600">Tempo médio (últimos 5)</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleBasicInfo} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Seu Nome</label>
@@ -266,7 +249,7 @@ export const PublicQueue: React.FC = () => {
             type="text" 
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
             placeholder="Ex: Maria Silva"
           />
         </div>
@@ -278,9 +261,26 @@ export const PublicQueue: React.FC = () => {
             type="tel" 
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
             placeholder="(11) 99999-9999"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <input 
+            required
+            type="email" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            placeholder="seu@email.com"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Você receberá notificações por email e WhatsApp quando sua vez se aproximar.
+          </p>
         </div>
 
         <div>
@@ -288,7 +288,7 @@ export const PublicQueue: React.FC = () => {
           <select 
             value={partySize}
             onChange={(e) => setPartySize(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
           >
             {[1,2,3,4,5,6,7,8,9,10,12,15].map(n => (
               <option key={n} value={n}>{n} pessoas</option>
@@ -303,7 +303,7 @@ export const PublicQueue: React.FC = () => {
 
       <div className="text-center">
          <div className="inline-flex items-center gap-2 text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-           <Clock size={12}/> Tempo médio por mesa: ~45 min
+           <Mail size={12}/> Você receberá notificações quando faltarem 3 grupos, 1 grupo e quando sua mesa estiver pronta!
          </div>
       </div>
     </div>

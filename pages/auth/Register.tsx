@@ -139,7 +139,7 @@ export const Register: React.FC = () => {
         </form>
 
         <div className="text-center text-sm text-gray-500 mt-4">
-           Já tem uma conta? <Link to="/login" className="text-indigo-600 font-medium hover:underline">Fazer Login</Link>
+           Já tem uma conta? <Link to="/login" className="text-orange-600 font-medium hover:underline">Fazer Login</Link>
         </div>
       </div>
     </div>

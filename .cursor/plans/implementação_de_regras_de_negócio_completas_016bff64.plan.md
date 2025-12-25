@@ -146,4 +146,3 @@ tação Completa de Regras de Negócio
 
 - `checkOperatingHours(restaurantId: string): Promise<boolean>`
 - `isRestaurantActive(restaurantId: string): Promise<boolean>`
-- `getRestaurantConfig(restaurantId: string)`
