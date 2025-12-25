@@ -1,0 +1,7 @@
+{
+  "name": "RestoFlow SaaS - OK",
+  "description": "Sistema SaaS completo de gestão para restaurantes com funcionalidades de IA, Fila, Reservas e Menu Digital.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
