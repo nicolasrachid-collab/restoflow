@@ -12,6 +12,7 @@ import { PublicLinksModule } from './public-links/public-links.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { AuditModule } from './audit/audit.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { CategoriesModule } from './menu/categories.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -23,6 +24,7 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     MenuModule,
+    CategoriesModule,
     QueueModule,
     ReservationsModule,
     NotificationsModule,

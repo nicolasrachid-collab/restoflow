@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Menu, Map, CalendarDays, LogOut, Menu as MenuIcon, X, AlertTriangle, Link as LinkIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Menu, Map, CalendarDays, LogOut, Menu as MenuIcon, X, AlertTriangle, Link as LinkIcon, FolderTree, Clock, Settings, UserCog } from 'lucide-react';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -11,8 +11,12 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { icon: Users, label: 'Fila de Espera', path: '/admin/queue' },
     { icon: CalendarDays, label: 'Reservas', path: '/admin/reservations' },
     { icon: Menu, label: 'Menu Inteligente', path: '/admin/menu' },
+    { icon: FolderTree, label: 'Categorias', path: '/admin/categories' },
+    { icon: Clock, label: 'Horários', path: '/admin/operating-hours' },
     { icon: Map, label: 'Insights & Mapa', path: '/admin/insights' },
     { icon: LinkIcon, label: 'Links Públicos', path: '/admin/links' },
+    { icon: Settings, label: 'Configurações', path: '/admin/settings' },
+    { icon: UserCog, label: 'Usuários', path: '/admin/users' },
   ];
 
   return (

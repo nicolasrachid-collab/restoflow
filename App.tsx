@@ -12,6 +12,10 @@ import { MenuManager } from './pages/admin/MenuManager';
 import { MarketInsights } from './pages/admin/MarketInsights';
 import { Reservations } from './pages/admin/Reservations';
 import { PublicLinks } from './pages/admin/PublicLinks';
+import { Categories } from './pages/admin/Categories';
+import { OperatingHours } from './pages/admin/OperatingHours';
+import { RestaurantSettings } from './pages/admin/RestaurantSettings';
+import { Users } from './pages/admin/Users';
 
 // Auth Pages
 import { Login } from './pages/auth/Login';
@@ -50,8 +54,12 @@ const AppRoutes: React.FC = () => {
         <Route path="/admin/queue" element={<ProtectedRoute><AdminLayout><QueueManager /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/reservations" element={<ProtectedRoute><AdminLayout><Reservations /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/menu" element={<ProtectedRoute><AdminLayout><MenuManager /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/categories" element={<ProtectedRoute><AdminLayout><Categories /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/operating-hours" element={<ProtectedRoute><AdminLayout><OperatingHours /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/insights" element={<ProtectedRoute><AdminLayout><MarketInsights /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/links" element={<ProtectedRoute><AdminLayout><PublicLinks /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute><AdminLayout><RestaurantSettings /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminLayout><Users /></AdminLayout></ProtectedRoute>} />
 
         {/* Default Redirects */}
         <Route path="/" element={<Navigate to="/login" replace />} />

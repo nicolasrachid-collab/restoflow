@@ -1,7 +1,8 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Prisma, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -118,5 +119,121 @@ export class UsersService {
     );
 
     return updated;
+  }
+
+  async findAll(restaurantId: string) {
+    return (this.prisma as any).user.findMany({
+      where: { restaurantId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        mustChangePassword: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findById(id: string, restaurantId: string) {
+    const user = await (this.prisma as any).user.findFirst({
+      where: { id, restaurantId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    return user;
+  }
+
+  async activate(id: string, restaurantId: string, activatedByUserId: string, activatedByRole: UserRole): Promise<User> {
+    if (activatedByRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Apenas administradores podem ativar usuários');
+    }
+
+    const user = await this.findById(id, restaurantId);
+
+    const updated = await (this.prisma as any).user.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
+    // Registrar em audit log
+    await this.auditService.logAction(
+      restaurantId,
+      activatedByUserId,
+      'User',
+      id,
+      'UPDATE',
+      { isActive: user.isActive },
+      { isActive: true },
+    );
+
+    return updated;
+  }
+
+  async changePassword(id: string, restaurantId: string, newPassword: string, changedByUserId: string, changedByRole: UserRole): Promise<User> {
+    if (changedByRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Apenas administradores podem alterar senhas');
+    }
+
+    const user = await this.findById(id, restaurantId);
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const updated = await (this.prisma as any).user.update({
+      where: { id },
+      data: { 
+        passwordHash,
+        mustChangePassword: true, // Forçar mudança na próxima vez que logar
+      },
+    });
+
+    // Registrar em audit log
+    await this.auditService.logAction(
+      restaurantId,
+      changedByUserId,
+      'User',
+      id,
+      'UPDATE',
+      null,
+      { passwordChanged: true },
+      { action: 'change_password' },
+    );
+
+    return updated;
+  }
+
+  async delete(id: string, restaurantId: string, deletedByUserId: string, deletedByRole: UserRole): Promise<void> {
+    if (deletedByRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Apenas administradores podem excluir usuários');
+    }
+
+    const user = await this.findById(id, restaurantId);
+
+    // Não permitir excluir o próprio usuário
+    if (id === deletedByUserId) {
+      throw new BadRequestException('Não é possível excluir seu próprio usuário');
+    }
+
+    await (this.prisma as any).user.delete({
+      where: { id },
+    });
+
+    // Registrar em audit log
+    await this.auditService.logAction(
+      restaurantId,
+      deletedByUserId,
+      'User',
+      id,
+      'DELETE',
+      user,
+      null,
+    );
   }
 }

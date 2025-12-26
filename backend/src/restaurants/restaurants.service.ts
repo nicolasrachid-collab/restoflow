@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { UpdateRestaurantConfigDto } from './dto/restaurant-settings.dto';
 
 @Injectable()
 export class RestaurantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   async isRestaurantActive(restaurantId: string): Promise<boolean> {
     const restaurant = await (this.prisma as any).restaurant.findUnique({
@@ -103,6 +108,104 @@ export class RestaurantsService {
     }
 
     return restaurant;
+  }
+
+  async updateConfig(restaurantId: string, data: UpdateRestaurantConfigDto, userId?: string) {
+    const restaurant = await (this.prisma as any).restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurante não encontrado');
+    }
+
+    const oldValue = { ...restaurant };
+
+    const updated = await (this.prisma as any).restaurant.update({
+      where: { id: restaurantId },
+      data,
+    });
+
+    // Registrar em audit log
+    if (userId) {
+      await this.auditService.logAction(
+        restaurantId,
+        userId,
+        'Restaurant',
+        restaurantId,
+        'UPDATE',
+        oldValue,
+        updated,
+      );
+    }
+
+    return updated;
+  }
+
+  async toggleQueueActive(restaurantId: string, userId?: string) {
+    const restaurant = await (this.prisma as any).restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurante não encontrado');
+    }
+
+    const oldValue = { queueActive: restaurant.queueActive };
+
+    const updated = await (this.prisma as any).restaurant.update({
+      where: { id: restaurantId },
+      data: { queueActive: !restaurant.queueActive },
+    });
+
+    // Registrar em audit log
+    if (userId) {
+      await this.auditService.logAction(
+        restaurantId,
+        userId,
+        'Restaurant',
+        restaurantId,
+        'STATUS_CHANGE',
+        oldValue,
+        { queueActive: updated.queueActive },
+        { action: 'toggle_queue_active' },
+      );
+    }
+
+    return updated;
+  }
+
+  async toggleActive(restaurantId: string, userId?: string) {
+    const restaurant = await (this.prisma as any).restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurante não encontrado');
+    }
+
+    const oldValue = { isActive: restaurant.isActive };
+
+    const updated = await (this.prisma as any).restaurant.update({
+      where: { id: restaurantId },
+      data: { isActive: !restaurant.isActive },
+    });
+
+    // Registrar em audit log
+    if (userId) {
+      await this.auditService.logAction(
+        restaurantId,
+        userId,
+        'Restaurant',
+        restaurantId,
+        'STATUS_CHANGE',
+        oldValue,
+        { isActive: updated.isActive },
+        { action: 'toggle_restaurant_active' },
+      );
+    }
+
+    return updated;
   }
 }
 

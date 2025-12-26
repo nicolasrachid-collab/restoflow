@@ -54,6 +54,13 @@ export const api = {
       body: JSON.stringify(body),
     });
   },
+
+  put<T>(endpoint: string, body: any) {
+    return request<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
   
   delete<T>(endpoint: string) {
     return request<T>(endpoint, { method: 'DELETE' });
