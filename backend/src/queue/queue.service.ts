@@ -330,7 +330,7 @@ export class QueueService {
 
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
-    // Se não está aguardando ou notificado, retorna posição 0
+    // Se não está aguardando ou notificado, retorna dados básicos com status
     if (ticket.status !== QueueStatus.WAITING && ticket.status !== QueueStatus.NOTIFIED) {
       return {
         position: 0,
@@ -338,6 +338,8 @@ export class QueueService {
         status: ticket.status,
         restaurantName: restaurant.name,
         estimatedWaitMinutes: 0,
+        ticketId: ticket.id,
+        calledTimeoutMinutes: restaurant.calledTimeoutMinutes || 10,
       };
     }
 
@@ -374,10 +376,11 @@ export class QueueService {
     return {
       position: position + 1, // Posição (1-based)
       waitingCount,
-      status: ticket.status,
+      status: ticket.status, // Sempre retornar status
       restaurantName: restaurant.name,
       estimatedWaitMinutes,
       ticketId: ticket.id,
+      calledTimeoutMinutes: restaurant.calledTimeoutMinutes || 10,
     };
   }
 
@@ -445,6 +448,15 @@ export class QueueService {
           this.queueGateway.emitPositionUpdate(id, positionData);
           const publicStatus = await this.getPublicQueueStatus(restaurant.slug);
           this.queueGateway.emitPublicQueueUpdate(restaurant.slug, publicStatus);
+          
+          // Emit status change event when called
+          if (status === QueueStatus.CALLED) {
+            this.queueGateway.emitStatusChanged(id, {
+              ticketId: id,
+              status: 'CALLED',
+              position: updated.position,
+            });
+          }
         }
       }
     }
@@ -526,6 +538,38 @@ export class QueueService {
 
       if (!restaurant) return;
 
+      // Verificar se o primeiro foi chamado
+      const firstItem = queueItems[0];
+      const wasFirstCalled = firstItem && firstItem.status === QueueStatus.CALLED;
+
+      // Se o primeiro foi chamado, notificar quem está na posição 3 da fila de espera
+      // (considerando apenas WAITING e NOTIFIED, excluindo CALLED)
+      if (wasFirstCalled) {
+        const waitingItems = queueItems.filter(
+          (item: any) => item.status === QueueStatus.WAITING || item.status === QueueStatus.NOTIFIED
+        );
+        
+        // Se há pelo menos 3 itens na fila de espera (excluindo o chamado)
+        if (waitingItems.length >= 3) {
+          const thirdItem = waitingItems[2]; // Terceiro na fila de espera
+          if (thirdItem.status === QueueStatus.WAITING && !thirdItem.notifiedAt && thirdItem.email) {
+            try {
+              await this.sendNotification(thirdItem, restaurant, 'POSITION_3');
+              // Marcar como notificado e atualizar status
+              await (this.prisma as any).queueItem.update({
+                where: { id: thirdItem.id },
+                data: {
+                  status: QueueStatus.NOTIFIED,
+                  notifiedAt: new Date(),
+                },
+              });
+            } catch (error) {
+              this.logger.error(`Erro ao enviar notificação POSITION_3 para ticket ${thirdItem.id}:`, error);
+            }
+          }
+        }
+      }
+
       // Verificar cada item e enviar notificações quando necessário
       for (let i = 0; i < queueItems.length; i++) {
         const item = queueItems[i];
@@ -535,20 +579,8 @@ export class QueueService {
         if (!item.email) continue;
 
         try {
-          // Posição 3: Primeira notificação (faltam 3 grupos)
-          if (position === 3 && item.status === QueueStatus.WAITING && !item.notifiedAt) {
-            await this.sendNotification(item, restaurant, 'POSITION_3');
-            // Marcar como notificado e atualizar status
-            await (this.prisma as any).queueItem.update({
-              where: { id: item.id },
-              data: {
-                status: QueueStatus.NOTIFIED,
-                notifiedAt: new Date(),
-              },
-            });
-          }
           // Posição 1: Segunda notificação (é o próximo)
-          else if (position === 1 && item.status === QueueStatus.NOTIFIED && item.notifiedAt) {
+          if (position === 1 && item.status === QueueStatus.NOTIFIED && item.notifiedAt) {
             // Verificar se já notificou posição 1 (não enviar duplicado)
             const lastNotified = item.notifiedAt;
             const now = new Date();

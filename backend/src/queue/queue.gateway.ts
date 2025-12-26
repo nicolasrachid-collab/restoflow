@@ -105,5 +105,11 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`public-queue:${slug}`).emit('queue-status-updated', statusData);
     this.logger.debug(`Emitted 'queue-status-updated' to public-queue:${slug}`, statusData);
   }
+
+  // Emit status change event to ticket room
+  emitStatusChanged(ticketId: string, statusData: { ticketId: string; status: string; position: number }) {
+    this.server.to(`ticket:${ticketId}`).emit('status-changed', statusData);
+    this.logger.debug(`Emitted 'status-changed' to ticket:${ticketId}`, statusData);
+  }
 }
 

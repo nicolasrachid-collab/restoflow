@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from './components/Layout';
 import { PublicLayout } from './components/PublicLayout';
 import { RestoProvider } from './context/RestoContext';
@@ -63,7 +63,7 @@ const AppRoutes: React.FC = () => {
 
         {/* Default Redirects */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Catch-all removido para permitir rotas públicas funcionarem corretamente */}
     </Routes>
   );
 }
@@ -72,9 +72,9 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <RestoProvider>
-          <HashRouter>
+          <BrowserRouter>
              <AppRoutes />
-          </HashRouter>
+          </BrowserRouter>
       </RestoProvider>
     </AuthProvider>
   );

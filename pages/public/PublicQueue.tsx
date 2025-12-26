@@ -23,11 +23,40 @@ export const PublicQueue: React.FC = () => {
   // Customer State
   const [customer, setCustomer] = useState<Customer | null>(null);
   
+  // Queue Info State
+  const [queueInfo, setQueueInfo] = useState<{
+    waitingCount: number;
+    averageWaitMinutes: number;
+    restaurantName: string;
+  } | null>(null);
+
   // Status State
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
   const [waitingCount, setWaitingCount] = useState<number>(0);
   const [estimatedWaitMinutes, setEstimatedWaitMinutes] = useState<number>(15);
+  const [ticketStatus, setTicketStatus] = useState<string>('WAITING');
+  const [restaurantName, setRestaurantName] = useState<string>('');
+  const [calledTimeoutMinutes, setCalledTimeoutMinutes] = useState<number>(10);
+
+  // Load queue info when on JOIN view
+  useEffect(() => {
+    if (slug && view === 'JOIN') {
+      const loadQueueInfo = async () => {
+        try {
+          const data = await api.get<{
+            waitingCount: number;
+            averageWaitMinutes: number;
+            restaurantName: string;
+          }>(`/queue/public/${slug}`);
+          setQueueInfo(data);
+        } catch (error) {
+          console.error('Erro ao carregar informações da fila', error);
+        }
+      };
+      loadQueueInfo();
+    }
+  }, [slug, view]);
 
   // WebSocket + Fallback Polling for position updates
   useEffect(() => {
@@ -39,11 +68,16 @@ export const PublicQueue: React.FC = () => {
             waitingCount: number;
             estimatedWaitMinutes: number;
             status: string;
+            restaurantName?: string;
+            calledTimeoutMinutes?: number;
           }>(`/queue/public/${slug}/ticket/${ticketId}`);
           
           setPosition(data.position);
           setWaitingCount(data.waitingCount);
           setEstimatedWaitMinutes(data.estimatedWaitMinutes);
+          setTicketStatus(data.status);
+          if (data.restaurantName) setRestaurantName(data.restaurantName);
+          if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
         } catch (e) {
           console.error("Erro ao atualizar posição", e);
         }
@@ -61,10 +95,23 @@ export const PublicQueue: React.FC = () => {
         position: number;
         waitingCount: number;
         estimatedWaitMinutes: number;
+        status?: string;
+        restaurantName?: string;
+        calledTimeoutMinutes?: number;
       }) => {
         setPosition(data.position);
         setWaitingCount(data.waitingCount);
         setEstimatedWaitMinutes(data.estimatedWaitMinutes);
+        if (data.status) setTicketStatus(data.status);
+        if (data.restaurantName) setRestaurantName(data.restaurantName);
+        if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
+      });
+
+      // Listen for status changes
+      socket.on('status-changed', (data: { status: string; ticketId: string }) => {
+        if (data.ticketId === ticketId) {
+          setTicketStatus(data.status);
+        }
       });
 
       // Listen for general queue status updates
@@ -77,6 +124,7 @@ export const PublicQueue: React.FC = () => {
 
       return () => {
         socket.off('position-updated');
+        socket.off('status-changed');
         socket.off('queue-status-updated');
         clearInterval(interval);
       };
@@ -149,6 +197,7 @@ export const PublicQueue: React.FC = () => {
       const response = await api.post<{ id: string }>(`/queue/join/${slug}`, {
         customerName: name,
         phone: phone,
+        email: email.trim(),
         partySize: parseInt(partySize),
         customerId: customerId,
       });
@@ -168,6 +217,43 @@ export const PublicQueue: React.FC = () => {
   };
 
 
+  // Show CALLED status screen
+  if (view === 'STATUS' && ticketStatus === 'CALLED') {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border-4 border-orange-500 p-8 text-center space-y-6 animate-pulse">
+        <div className="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center text-white mx-auto animate-bounce">
+          <AlertTriangle size={40} />
+        </div>
+        
+        <div>
+          <h2 className="text-3xl font-bold text-orange-600 mb-2">VOCÊ FOI CHAMADO!</h2>
+          <p className="text-lg text-gray-700">Sua mesa está pronta!</p>
+        </div>
+
+        <div className="bg-orange-100 p-6 rounded-lg border-2 border-orange-300">
+          <p className="text-xl font-semibold text-orange-900">
+            Por favor, dirija-se à recepção do restaurante agora!
+          </p>
+        </div>
+
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+          <p className="text-sm text-amber-800">
+            <strong>Importante:</strong> Você tem {calledTimeoutMinutes} minutos para comparecer.
+          </p>
+        </div>
+
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-800">
+            <strong>Restaurante:</strong> {restaurantName || 'Aguardando informações...'}
+          </p>
+        </div>
+
+        <Button variant="ghost" onClick={() => window.location.reload()}>Sair da tela</Button>
+      </div>
+    );
+  }
+
+  // Show waiting status screen
   if (view === 'STATUS') {
     const groupsAhead = Math.max(0, position - 1);
     

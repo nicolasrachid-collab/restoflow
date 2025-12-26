@@ -28,6 +28,8 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
+      // Configuração para suportar BrowserRouter (SPA fallback)
+      historyApiFallback: true,
     }
   };
 });
