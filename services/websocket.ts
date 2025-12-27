@@ -12,7 +12,31 @@ class WebSocketService {
   private errorCallbacks: Set<ErrorCallback> = new Set();
   private statusCallbacks: Set<StatusCallback> = new Set();
 
+  private isWebSocketDisabled(): boolean {
+    return import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
+  }
+
+  private createMockSocket(): Socket {
+    // Retorna um objeto mock que simula um socket desconectado
+    return {
+      connected: false,
+      emit: () => {},
+      on: () => this as any,
+      off: () => this as any,
+      once: () => this as any,
+      disconnect: () => {},
+      removeAllListeners: () => this as any,
+    } as any;
+  }
+
   connect(namespace: string = '/queue'): Socket {
+    // Se WebSocket está desabilitado, retorna um mock socket
+    if (this.isWebSocketDisabled()) {
+      console.log('🔇 WebSocket desabilitado em modo desenvolvimento');
+      this.setStatus('disconnected');
+      return this.createMockSocket();
+    }
+
     if (this.socket?.connected) {
       return this.socket;
     }
@@ -89,6 +113,9 @@ class WebSocketService {
   }
 
   isConnected(): boolean {
+    if (this.isWebSocketDisabled()) {
+      return false; // Sempre retorna false quando desabilitado
+    }
     return this.socket?.connected || false;
   }
 
@@ -98,6 +125,10 @@ class WebSocketService {
 
   // Emite evento apenas se estiver conectado
   safeEmit(event: string, data?: any): boolean {
+    if (this.isWebSocketDisabled()) {
+      console.log(`🔇 WebSocket desabilitado - evento '${event}' ignorado`);
+      return false;
+    }
     if (!this.socket?.connected) {
       console.warn(`⚠️ Tentativa de emitir evento '${event}' sem conexão WebSocket`);
       return false;
@@ -108,6 +139,9 @@ class WebSocketService {
 
   // Aguarda conexão antes de emitir
   async waitForConnection(timeout: number = 5000): Promise<boolean> {
+    if (this.isWebSocketDisabled()) {
+      return false; // Retorna false imediatamente quando desabilitado
+    }
     if (this.isConnected()) {
       return true;
     }

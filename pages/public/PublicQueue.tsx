@@ -74,6 +74,8 @@ export const PublicQueue: React.FC = () => {
   // WebSocket + Fallback Polling for position updates
   useEffect(() => {
     if (view === 'STATUS' && slug && ticketId) {
+      const isWebSocketDisabled = import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
+      
       const fetchPosition = async () => {
         try {
           const data = await api.get<{
@@ -100,77 +102,90 @@ export const PublicQueue: React.FC = () => {
       // Initial fetch
       fetchPosition();
 
-      // Connect to WebSocket for real-time updates
-      const socket = wsService.connect();
-      
-      // Aguarda conexão antes de emitir eventos
-      const setupSocket = async () => {
-        const connected = await wsService.waitForConnection(5000);
+      if (!isWebSocketDisabled) {
+        // Connect to WebSocket for real-time updates
+        const socket = wsService.connect();
         
-        if (connected) {
-          wsService.safeEmit('join-public-queue', { slug, ticketId });
-        } else {
-          console.warn('WebSocket não conectado a tempo, usando apenas polling');
-        }
-      };
+        // Aguarda conexão antes de emitir eventos
+        const setupSocket = async () => {
+          const connected = await wsService.waitForConnection(5000);
+          
+          if (connected) {
+            wsService.safeEmit('join-public-queue', { slug, ticketId });
+          } else {
+            console.warn('WebSocket não conectado a tempo, usando apenas polling');
+          }
+        };
 
-      setupSocket();
+        setupSocket();
 
-      // Listen for position updates
-      socket.on('position-updated', (data: {
-        position: number;
-        waitingCount: number;
-        estimatedWaitMinutes: number;
-        status?: string;
-        restaurantName?: string;
-        calledTimeoutMinutes?: number;
-      }) => {
-        setPosition(data.position);
-        setWaitingCount(data.waitingCount);
-        setEstimatedWaitMinutes(data.estimatedWaitMinutes);
-        if (data.status) setTicketStatus(data.status);
-        if (data.restaurantName) setRestaurantName(data.restaurantName);
-        if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
-      });
+        // Listen for position updates
+        socket.on('position-updated', (data: {
+          position: number;
+          waitingCount: number;
+          estimatedWaitMinutes: number;
+          status?: string;
+          restaurantName?: string;
+          calledTimeoutMinutes?: number;
+        }) => {
+          setPosition(data.position);
+          setWaitingCount(data.waitingCount);
+          setEstimatedWaitMinutes(data.estimatedWaitMinutes);
+          if (data.status) setTicketStatus(data.status);
+          if (data.restaurantName) setRestaurantName(data.restaurantName);
+          if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
+        });
 
-      // Listen for status changes
-      socket.on('status-changed', (data: { status: string; ticketId: string }) => {
-        if (data.ticketId === ticketId) {
-          setTicketStatus(data.status);
-        }
-      });
+        // Listen for status changes
+        socket.on('status-changed', (data: { status: string; ticketId: string }) => {
+          if (data.ticketId === ticketId) {
+            setTicketStatus(data.status);
+          }
+        });
 
-      // Listen for general queue status updates
-      socket.on('queue-status-updated', (data: { waitingCount: number }) => {
-        setWaitingCount(data.waitingCount);
-      });
+        // Listen for general queue status updates
+        socket.on('queue-status-updated', (data: { waitingCount: number }) => {
+          setWaitingCount(data.waitingCount);
+        });
 
-      // Listen for errors
-      socket.on('error', (error: any) => {
-        console.error('Erro no WebSocket:', error);
-        // Não mostra toast para evitar spam, apenas loga
-      });
+        // Listen for errors
+        socket.on('error', (error: any) => {
+          console.error('Erro no WebSocket:', error);
+          // Não mostra toast para evitar spam, apenas loga
+        });
 
-      // Listen for connection errors
-      const unsubscribeError = wsService.onError((error) => {
-        console.error('Erro de conexão WebSocket:', error);
-        // Não mostra toast para tentativas de reconexão intermediárias
-        if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
-          toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
-        }
-      });
+        // Listen for connection errors
+        const unsubscribeError = wsService.onError((error) => {
+          console.error('Erro de conexão WebSocket:', error);
+          // Não mostra toast para tentativas de reconexão intermediárias
+          if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
+            toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
+          }
+        });
 
-      // Fallback polling (less frequent, only if WebSocket fails)
-      const interval = setInterval(fetchPosition, 30000); // 30s fallback
+        // Polling automático (mais frequente se WebSocket desabilitado)
+        const pollInterval = isWebSocketDisabled ? 5000 : 30000;
+        const interval = setInterval(fetchPosition, pollInterval);
 
-      return () => {
-        socket.off('position-updated');
-        socket.off('status-changed');
-        socket.off('queue-status-updated');
-        socket.off('error');
-        unsubscribeError();
-        clearInterval(interval);
-      };
+        return () => {
+          socket.off('position-updated');
+          socket.off('status-changed');
+          socket.off('queue-status-updated');
+          socket.off('error');
+          unsubscribeError();
+          clearInterval(interval);
+        };
+      } else {
+        console.log('🔇 Modo desenvolvimento: usando apenas polling (WebSocket desabilitado)');
+        
+        // Polling automático (mais frequente quando WebSocket desabilitado)
+        const pollInterval = 5000; // 5 segundos
+        const interval = setInterval(fetchPosition, pollInterval);
+
+        return () => {
+          clearInterval(interval);
+        };
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, slug, ticketId]);
