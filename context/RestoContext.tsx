@@ -15,6 +15,7 @@ interface RestoContextType {
   refreshData: () => Promise<void>;
   addQueueItem: (item: any) => Promise<void>;
   updateQueueStatus: (id: string, status: QueueStatus) => Promise<void>;
+  moveQueueItem: (id: string, newPosition: number) => Promise<void>;
   addMenuItem: (item: MenuItem) => Promise<void>;
   updateMenuItem: (id: string, item: Partial<MenuItem>) => Promise<void>;
   removeMenuItem: (id: string) => Promise<void>;
@@ -194,6 +195,32 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const moveQueueItem = async (id: string, newPosition: number) => {
+    // Optimistic update
+    setQueue(prev => {
+      const currentQueue = prev.filter(q => q.id !== id);
+      const itemToMove = prev.find(q => q.id === id);
+      if (!itemToMove) return prev;
+
+      const newQueue = [...currentQueue];
+      newQueue.splice(newPosition - 1, 0, { ...itemToMove, manualOrder: true });
+
+      // Recalcular posições
+      return newQueue.map((q, index) => ({ ...q, position: index + 1 }));
+    });
+
+    try {
+      await api.patch(`/queue/${id}/move`, { position: newPosition });
+      toast.success('Item da fila movido com sucesso!');
+      refreshData(); // Para garantir que o backend recalcule e sincronize
+    } catch (e: any) {
+      console.error("Erro ao mover item da fila", e);
+      refreshData();
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao mover item da fila';
+      toast.error(errorMessage);
+    }
+  };
+
   const addMenuItem = async (item: MenuItem) => {
     try {
       await api.post('/menu', {
@@ -275,7 +302,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <RestoContext.Provider value={{
       queue, menu, reservations, isLoadingData,
       refreshData,
-      addQueueItem, updateQueueStatus,
+      addQueueItem, updateQueueStatus, moveQueueItem,
       addMenuItem, updateMenuItem, removeMenuItem,
       addReservation, updateReservationStatus
     }}>

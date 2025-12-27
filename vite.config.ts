@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => {
   
   const serverConfig: any = {
     port: 5173,
-    // Configuração para suportar BrowserRouter (SPA fallback)
-    historyApiFallback: true,
+    host: true, // Permite acesso via localhost e IP da rede
+    // O Vite já tem suporte nativo para SPA routing, não precisa de historyApiFallback
   };
   
   // Só adiciona proxy se estiver usando servidor

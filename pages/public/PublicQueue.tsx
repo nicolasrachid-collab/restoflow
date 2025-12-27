@@ -48,6 +48,7 @@ export const PublicQueue: React.FC = () => {
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [calledTimeoutMinutes, setCalledTimeoutMinutes] = useState<number>(10);
   const previousStatusRef = useRef<string>('WAITING');
+  const previousPositionRef = useRef<number>(0);
 
   // Load queue info when on JOIN view
   useEffect(() => {
@@ -76,8 +77,10 @@ export const PublicQueue: React.FC = () => {
   useEffect(() => {
     if (ticketStatus?.toUpperCase() === 'CALLED' && view === 'STATUS') {
       console.log('🔔 Status é CALLED! Forçando atualização da tela...');
-      // Força re-render garantindo que o estado está atualizado
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Força scroll para o topo para garantir que a tela seja visível
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     }
   }, [ticketStatus, view]);
 
@@ -104,6 +107,16 @@ export const PublicQueue: React.FC = () => {
           // Atualizar status sempre (normalizar para maiúsculas)
           const normalizedStatus = data.status?.toUpperCase() || 'WAITING';
           const wasCalled = normalizedStatus === 'CALLED' && previousStatusRef.current !== 'CALLED';
+          const previousPosition = previousPositionRef.current;
+          
+          // Detectar mudanças de posição para notificações prévias
+          if (data.position !== previousPosition && normalizedStatus !== 'CALLED') {
+            if (data.position === 3 && previousPosition !== 3) {
+              toast.info('📢 Faltam 3 grupos na sua frente! Prepare-se.', 8000);
+            } else if (data.position === 1 && previousPosition !== 1) {
+              toast.success('🎯 Você é o próximo! Fique atento.', 8000);
+            }
+          }
           
           // Sempre atualizar o status
           setTicketStatus(normalizedStatus);
@@ -111,6 +124,42 @@ export const PublicQueue: React.FC = () => {
           // Detectar mudança para CALLED e mostrar aviso
           if (wasCalled) {
             console.log('🔔 Status mudou para CALLED! Atualizando tela...');
+            
+            // Tocar som de alerta
+            try {
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              oscillator.frequency.value = 800;
+              oscillator.type = 'sine';
+              
+              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+              
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.5);
+              
+              // Tocar novamente após 0.6s
+              setTimeout(() => {
+                const oscillator2 = audioContext.createOscillator();
+                const gainNode2 = audioContext.createGain();
+                oscillator2.connect(gainNode2);
+                gainNode2.connect(audioContext.destination);
+                oscillator2.frequency.value = 800;
+                oscillator2.type = 'sine';
+                gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator2.start(audioContext.currentTime);
+                oscillator2.stop(audioContext.currentTime + 0.5);
+              }, 600);
+            } catch (error) {
+              console.warn('Erro ao tocar som de alerta:', error);
+            }
+            
             toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
             // Scroll para o topo para garantir que a tela seja visível
             setTimeout(() => {
@@ -119,6 +168,7 @@ export const PublicQueue: React.FC = () => {
           }
           
           previousStatusRef.current = normalizedStatus;
+          previousPositionRef.current = data.position;
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
         } catch (e: any) {
@@ -169,12 +219,57 @@ export const PublicQueue: React.FC = () => {
             const normalizedStatus = data.status.toUpperCase();
             const wasCalled = normalizedStatus === 'CALLED' && previousStatusRef.current !== 'CALLED';
             
+            // Detectar mudanças de posição para notificações prévias
+            if (data.position !== previousPositionRef.current && normalizedStatus !== 'CALLED') {
+              if (data.position === 3 && previousPositionRef.current !== 3) {
+                toast.info('📢 Faltam 3 grupos na sua frente! Prepare-se.', 8000);
+              } else if (data.position === 1 && previousPositionRef.current !== 1) {
+                toast.success('🎯 Você é o próximo! Fique atento.', 8000);
+              }
+            }
+            
             // Sempre atualizar o status
             setTicketStatus(normalizedStatus);
             
             // Detectar mudança para CALLED e mostrar aviso
             if (wasCalled) {
               console.log('🔔 Status mudou para CALLED via WebSocket! Atualizando tela...');
+              
+              // Tocar som de alerta
+              try {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                
+                // Tocar novamente após 0.6s
+                setTimeout(() => {
+                  const oscillator2 = audioContext.createOscillator();
+                  const gainNode2 = audioContext.createGain();
+                  oscillator2.connect(gainNode2);
+                  gainNode2.connect(audioContext.destination);
+                  oscillator2.frequency.value = 800;
+                  oscillator2.type = 'sine';
+                  gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                  gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                  oscillator2.start(audioContext.currentTime);
+                  oscillator2.stop(audioContext.currentTime + 0.5);
+                }, 600);
+              } catch (error) {
+                console.warn('Erro ao tocar som de alerta:', error);
+              }
+              
               toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
               // Scroll para o topo para garantir que a tela seja visível
               setTimeout(() => {
@@ -183,6 +278,9 @@ export const PublicQueue: React.FC = () => {
             }
             
             previousStatusRef.current = normalizedStatus;
+            if (typeof data.position === 'number') {
+              previousPositionRef.current = data.position;
+            }
           }
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
@@ -199,6 +297,42 @@ export const PublicQueue: React.FC = () => {
             // Detectar mudança para CALLED e mostrar aviso
             if (wasCalled) {
               console.log('🔔 Status mudou para CALLED via status-changed! Atualizando tela...');
+              
+              // Tocar som de alerta
+              try {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                
+                // Tocar novamente após 0.6s
+                setTimeout(() => {
+                  const oscillator2 = audioContext.createOscillator();
+                  const gainNode2 = audioContext.createGain();
+                  oscillator2.connect(gainNode2);
+                  gainNode2.connect(audioContext.destination);
+                  oscillator2.frequency.value = 800;
+                  oscillator2.type = 'sine';
+                  gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                  gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                  oscillator2.start(audioContext.currentTime);
+                  oscillator2.stop(audioContext.currentTime + 0.5);
+                }, 600);
+              } catch (error) {
+                console.warn('Erro ao tocar som de alerta:', error);
+              }
+              
               toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
               // Scroll para o topo para garantir que a tela seja visível
               setTimeout(() => {
@@ -282,6 +416,27 @@ export const PublicQueue: React.FC = () => {
     }
   };
 
+  const handleCancelQueue = async () => {
+    if (!ticketId) return;
+    
+    setLoading(true);
+    try {
+      await api.delete(`/queue/${ticketId}`);
+      toast.success('Você saiu da fila.');
+      // Resetar estado e voltar à tela de entrada
+      setTicketId(null);
+      setView('JOIN');
+      setPosition(0);
+      setTicketStatus('WAITING');
+    } catch (error: any) {
+      console.error('Erro ao sair da fila', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao sair da fila. Tente novamente.';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBasicInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!slug) return;
@@ -349,7 +504,30 @@ export const PublicQueue: React.FC = () => {
     console.log('🔍 Renderização:', { view, ticketStatus, isCalled, shouldShowCalled: view === 'STATUS' && isCalled });
   }
   
-  if (view === 'STATUS' && isCalled) {
+  // Componente para tela CALLED com timer
+  const CalledScreen: React.FC<{ timeoutMinutes: number; restaurantName?: string }> = ({ timeoutMinutes, restaurantName }) => {
+    const [timeRemaining, setTimeRemaining] = useState<number>(timeoutMinutes * 60);
+    
+    useEffect(() => {
+      // Reset timer quando timeoutMinutes mudar
+      setTimeRemaining(timeoutMinutes * 60);
+    }, [timeoutMinutes]);
+    
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 0) return 0;
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }, []);
+    
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const isTimeRunningOut = timeRemaining <= 30; // Últimos 30 segundos
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-red-50">
         <div className="bg-white rounded-2xl shadow-2xl border-4 border-orange-500 p-8 text-center space-y-6 max-w-md w-full animate-pulse">
@@ -368,9 +546,12 @@ export const PublicQueue: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-            <p className="text-sm text-amber-800">
-              <strong>⏰ Importante:</strong> Você tem {calledTimeoutMinutes} minutos para comparecer.
+          <div className={`p-4 rounded-lg border-2 ${isTimeRunningOut ? 'bg-red-50 border-red-300 animate-pulse' : 'bg-amber-50 border-amber-200'}`}>
+            <p className={`text-lg font-bold ${isTimeRunningOut ? 'text-red-900' : 'text-amber-800'}`}>
+              ⏰ Tempo restante: {minutes}:{seconds.toString().padStart(2, '0')}
+            </p>
+            <p className="text-sm text-amber-800 mt-2">
+              Após {timeoutMinutes} minutos, sua posição será liberada e você poderá ser colocado novamente no fim da fila.
             </p>
           </div>
 
@@ -390,6 +571,10 @@ export const PublicQueue: React.FC = () => {
         </div>
       </div>
     );
+  };
+
+  if (view === 'STATUS' && isCalled) {
+    return <CalledScreen timeoutMinutes={calledTimeoutMinutes} restaurantName={restaurantName} />;
   }
 
   // Show waiting status screen
@@ -438,7 +623,20 @@ export const PublicQueue: React.FC = () => {
            </p>
         </div>
 
-        <Button variant="ghost" onClick={() => window.location.reload()}>Sair da tela</Button>
+        <div className="flex gap-3 justify-center">
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              if (window.confirm('Tem certeza que deseja sair da fila? Isso removerá sua reserva.')) {
+                handleCancelQueue();
+              }
+            }}
+            className="text-red-600 border-red-300 hover:bg-red-50"
+          >
+            Sair da Fila
+          </Button>
+          <Button variant="ghost" onClick={() => window.location.reload()}>Sair da tela</Button>
+        </div>
       </div>
     );
   }
