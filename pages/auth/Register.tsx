@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
+import { useToast } from '../../context/ToastContext';
 import { Utensils, CheckCircle, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -41,7 +43,7 @@ export const Register: React.FC = () => {
 
     try {
       await api.post('/auth/register', formData);
-      alert('Conta criada com sucesso! Faça login para continuar.');
+      toast.success('Conta criada com sucesso! Faça login para continuar.');
       navigate('/login');
     } catch (err: any) {
       setError(err.message || 'Erro ao criar conta.');

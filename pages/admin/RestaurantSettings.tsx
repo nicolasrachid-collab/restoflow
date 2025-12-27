@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { api } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 import { Settings, Save, Power, PowerOff } from 'lucide-react';
 
 interface RestaurantConfig {
@@ -18,10 +20,12 @@ interface RestaurantConfig {
 }
 
 export const RestaurantSettings: React.FC = () => {
+  const toast = useToast();
   const [config, setConfig] = useState<RestaurantConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -51,9 +55,10 @@ export const RestaurantSettings: React.FC = () => {
         maxReservationAdvanceDays: data.maxReservationAdvanceDays || 30,
       });
       setHasChanges(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar configurações', error);
-      alert('Erro ao carregar configurações');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar configurações';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -67,27 +72,27 @@ export const RestaurantSettings: React.FC = () => {
   const handleSave = async () => {
     // Validações
     if (!formData.name.trim()) {
-      alert('O nome do restaurante é obrigatório');
+      toast.error('O nome do restaurante é obrigatório');
       return;
     }
     if (formData.maxPartySize < 1 || formData.maxPartySize > 100) {
-      alert('O tamanho máximo do grupo deve estar entre 1 e 100');
+      toast.error('O tamanho máximo do grupo deve estar entre 1 e 100');
       return;
     }
     if (formData.averageTableTimeMinutes < 5 || formData.averageTableTimeMinutes > 300) {
-      alert('O tempo médio de mesa deve estar entre 5 e 300 minutos');
+      toast.error('O tempo médio de mesa deve estar entre 5 e 300 minutos');
       return;
     }
     if (formData.calledTimeoutMinutes < 1 || formData.calledTimeoutMinutes > 60) {
-      alert('O timeout de chamada deve estar entre 1 e 60 minutos');
+      toast.error('O timeout de chamada deve estar entre 1 e 60 minutos');
       return;
     }
     if (formData.minReservationAdvanceHours < 0 || formData.minReservationAdvanceHours > 168) {
-      alert('A antecedência mínima deve estar entre 0 e 168 horas (7 dias)');
+      toast.error('A antecedência mínima deve estar entre 0 e 168 horas (7 dias)');
       return;
     }
     if (formData.maxReservationAdvanceDays < 1 || formData.maxReservationAdvanceDays > 365) {
-      alert('A antecedência máxima deve estar entre 1 e 365 dias');
+      toast.error('A antecedência máxima deve estar entre 1 e 365 dias');
       return;
     }
 
@@ -96,10 +101,11 @@ export const RestaurantSettings: React.FC = () => {
       await api.patch('/restaurants/config', formData);
       setHasChanges(false);
       await loadConfig();
-      alert('Configurações salvas com sucesso!');
+      toast.success('Configurações salvas com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar configurações', error);
-      alert(error.message || 'Erro ao salvar configurações');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao salvar configurações';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -109,25 +115,31 @@ export const RestaurantSettings: React.FC = () => {
     try {
       await api.patch('/restaurants/queue-active', {});
       await loadConfig();
+      toast.success(`Fila ${config?.queueActive ? 'desativada' : 'ativada'} com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao alterar status da fila', error);
-      alert(error.message || 'Erro ao alterar status da fila');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao alterar status da fila';
+      toast.error(errorMessage);
     }
   };
 
   const handleToggleRestaurant = async () => {
     if (!config) return;
-    
-    if (!confirm(`Tem certeza que deseja ${config.isActive ? 'desativar' : 'ativar'} o restaurante?`)) {
-      return;
-    }
+    setShowConfirmModal(true);
+  };
 
+  const confirmToggleRestaurant = async () => {
+    if (!config) return;
+    setShowConfirmModal(false);
+    
     try {
       await api.patch('/restaurants/active', {});
       await loadConfig();
+      toast.success(`Restaurante ${config.isActive ? 'desativado' : 'ativado'} com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao alterar status do restaurante', error);
-      alert(error.message || 'Erro ao alterar status do restaurante');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao alterar status do restaurante';
+      toast.error(errorMessage);
     }
   };
 
@@ -341,6 +353,16 @@ export const RestaurantSettings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmToggleRestaurant}
+        title={config?.isActive ? 'Desativar Restaurante' : 'Ativar Restaurante'}
+        message={`Tem certeza que deseja ${config?.isActive ? 'desativar' : 'ativar'} o restaurante? ${config?.isActive ? 'Todas as funcionalidades serão bloqueadas.' : 'O restaurante voltará a funcionar normalmente.'}`}
+        confirmLabel={config?.isActive ? 'Desativar' : 'Ativar'}
+        variant={config?.isActive ? 'danger' : 'info'}
+      />
     </div>
   );
 };

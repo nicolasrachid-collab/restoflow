@@ -33,15 +33,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const variantStyles = {
     danger: {
       icon: 'text-red-600',
-      button: 'bg-red-600 hover:bg-red-700',
+      buttonVariant: 'danger' as const,
     },
     warning: {
       icon: 'text-amber-600',
-      button: 'bg-amber-600 hover:bg-amber-700',
+      buttonVariant: 'primary' as const,
     },
     info: {
       icon: 'text-blue-600',
-      button: 'bg-blue-600 hover:bg-blue-700',
+      buttonVariant: 'primary' as const,
     },
   };
 
@@ -65,10 +65,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             {cancelLabel}
           </Button>
           <Button
-            variant="primary"
+            variant={style.buttonVariant}
             onClick={handleConfirm}
             isLoading={isLoading}
-            className={style.button}
           >
             {confirmLabel}
           </Button>

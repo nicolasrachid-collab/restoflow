@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { MenuItem, ImageSize, Category } from '../../types';
 import { generateText, generateMenuImage, editMenuImage } from '../../services/geminiService';
 import { api } from '../../services/api';
-import { Wand2, ImagePlus, Edit, Plus, Trash2 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import { useResto } from '../../context/RestoContext';
+import { Wand2, ImagePlus, Edit, Plus, Trash2, Utensils } from 'lucide-react';
 
 export const MenuManager: React.FC = () => {
+  const toast = useToast();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +38,10 @@ export const MenuManager: React.FC = () => {
   const [editingImg, setEditingImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
   const [imgSize, setImgSize] = useState<ImageSize>(ImageSize.SIZE_1K);
+  
+  // Delete confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
 
   useEffect(() => {
     loadData();
@@ -46,16 +56,20 @@ export const MenuManager: React.FC = () => {
       ]);
       setMenu(menuData);
       setCategories(categoriesData.filter((c) => c.isActive));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados', error);
-      alert('Erro ao carregar menu e categorias');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar menu e categorias';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateDescription = async () => {
-    if (!newItemName) return alert('Digite o nome do prato primeiro');
+    if (!newItemName) {
+      toast.warning('Digite o nome do prato primeiro');
+      return;
+    }
     setGeneratingDesc(true);
     const desc = await generateText(`Crie uma descrição apetitosa e curta (máx 20 palavras) para um prato de restaurante chamado: ${newItemName}. Foque em sabor e ingredientes.`);
     setNewItemDesc(desc);
@@ -63,14 +77,18 @@ export const MenuManager: React.FC = () => {
   };
 
   const handleGenerateImage = async () => {
-    if (!newItemName) return alert('Digite o nome do prato primeiro');
+    if (!newItemName) {
+      toast.warning('Digite o nome do prato primeiro');
+      return;
+    }
     setGeneratingImg(true);
     const prompt = `Uma foto profissional e apetitosa de comida: ${newItemName}. Iluminação de estúdio, alta resolução, 8k, food styling.`;
     const base64 = await generateMenuImage(prompt, imgSize);
     if (base64) {
       setNewItemImage(base64);
+      toast.success('Imagem gerada com sucesso!');
     } else {
-      alert('Falha ao gerar imagem.');
+      toast.error('Falha ao gerar imagem.');
     }
     setGeneratingImg(false);
   };
@@ -82,8 +100,9 @@ export const MenuManager: React.FC = () => {
     if (edited) {
       setNewItemImage(edited);
       setImgPrompt('');
+      toast.success('Imagem editada com sucesso!');
     } else {
-      alert('Falha ao editar imagem.');
+      toast.error('Falha ao editar imagem.');
     }
     setEditingImg(false);
   };
@@ -110,9 +129,11 @@ export const MenuManager: React.FC = () => {
       setNewItemImage(null);
       setNewItemCategoryId('');
       loadData();
+      toast.success('Item adicionado ao menu com sucesso!');
     } catch (error: any) {
       console.error('Erro ao criar item', error);
-      alert(error.message || 'Erro ao criar item');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao criar item';
+      toast.error(errorMessage);
     }
   };
 
@@ -150,14 +171,19 @@ export const MenuManager: React.FC = () => {
       setEditItemImage(null);
       setEditItemCategoryId('');
       loadData();
+      toast.success('Item atualizado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao atualizar item', error);
-      alert(error.message || 'Erro ao atualizar item');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao atualizar item';
+      toast.error(errorMessage);
     }
   };
 
   const handleGenerateEditDescription = async () => {
-    if (!editItemName) return alert('Digite o nome do prato primeiro');
+    if (!editItemName) {
+      toast.warning('Digite o nome do prato primeiro');
+      return;
+    }
     setGeneratingDesc(true);
     const desc = await generateText(`Crie uma descrição apetitosa e curta (máx 20 palavras) para um prato de restaurante chamado: ${editItemName}. Foque em sabor e ingredientes.`);
     setEditItemDesc(desc);
@@ -165,14 +191,18 @@ export const MenuManager: React.FC = () => {
   };
 
   const handleGenerateEditImage = async () => {
-    if (!editItemName) return alert('Digite o nome do prato primeiro');
+    if (!editItemName) {
+      toast.warning('Digite o nome do prato primeiro');
+      return;
+    }
     setGeneratingImg(true);
     const prompt = `Uma foto profissional e apetitosa de comida: ${editItemName}. Iluminação de estúdio, alta resolução, 8k, food styling.`;
     const base64 = await generateMenuImage(prompt, imgSize);
     if (base64) {
       setEditItemImage(base64);
+      toast.success('Imagem gerada com sucesso!');
     } else {
-      alert('Falha ao gerar imagem.');
+      toast.error('Falha ao gerar imagem.');
     }
     setGeneratingImg(false);
   };
@@ -325,15 +355,9 @@ export const MenuManager: React.FC = () => {
                     <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                     <div className="mt-3 flex gap-2">
                       <button className="text-xs text-orange-600 font-medium hover:text-orange-800" onClick={() => handleEditClick(item)}>Editar</button>
-                      <button className="text-xs text-red-600 font-medium hover:text-red-800" onClick={async () => {
-                        if (confirm('Tem certeza que deseja excluir este item?')) {
-                          try {
-                            await api.delete(`/menu/${item.id}`);
-                            loadData();
-                          } catch (error: any) {
-                            alert('Erro ao excluir item');
-                          }
-                        }
+                      <button className="text-xs text-red-600 font-medium hover:text-red-800" onClick={() => {
+                        setItemToDelete(item);
+                        setShowDeleteModal(true);
                       }}>Excluir</button>
                     </div>
                   </div>
@@ -369,15 +393,9 @@ export const MenuManager: React.FC = () => {
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                         <div className="mt-3 flex gap-2">
                           <button className="text-xs text-orange-600 font-medium hover:text-orange-800" onClick={() => handleEditClick(item)}>Editar</button>
-                          <button className="text-xs text-red-600 font-medium hover:text-red-800" onClick={async () => {
-                            if (confirm('Tem certeza que deseja excluir este item?')) {
-                              try {
-                                await api.delete(`/menu/${item.id}`);
-                                loadData();
-                              } catch (error: any) {
-                                alert('Erro ao excluir item');
-                              }
-                            }
+                          <button className="text-xs text-red-600 font-medium hover:text-red-800" onClick={() => {
+                            setItemToDelete(item);
+                            setShowDeleteModal(true);
                           }}>Excluir</button>
                         </div>
                       </div>
@@ -485,6 +503,32 @@ export const MenuManager: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={async () => {
+          if (!itemToDelete) return;
+          try {
+            await api.delete(`/menu/${itemToDelete.id}`);
+            loadData();
+            toast.success('Item excluído com sucesso!');
+          } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao excluir item';
+            toast.error(errorMessage);
+          } finally {
+            setShowDeleteModal(false);
+            setItemToDelete(null);
+          }
+        }}
+        title="Excluir Item"
+        message={`Tem certeza que deseja excluir "${itemToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        variant="danger"
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 import { Clock, Save } from 'lucide-react';
 
 interface OperatingHoursItem {
@@ -22,6 +23,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export const OperatingHours: React.FC = () => {
+  const toast = useToast();
   const [hours, setHours] = useState<OperatingHoursItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,9 +38,10 @@ export const OperatingHours: React.FC = () => {
       const data = await api.get<OperatingHoursItem[]>('/restaurants/operating-hours');
       setHours(data);
       setHasChanges(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar horários', error);
-      alert('Erro ao carregar horários');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar horários';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -65,11 +68,11 @@ export const OperatingHours: React.FC = () => {
     for (const hour of hours) {
       if (hour.isOpen) {
         if (!hour.openTime || !hour.closeTime) {
-          alert(`Por favor, preencha os horários para ${DAYS_OF_WEEK[hour.dayOfWeek].label}`);
+          toast.error(`Por favor, preencha os horários para ${DAYS_OF_WEEK[hour.dayOfWeek].label}`);
           return;
         }
         if (hour.openTime >= hour.closeTime) {
-          alert(
+          toast.error(
             `O horário de abertura deve ser anterior ao de fechamento em ${DAYS_OF_WEEK[hour.dayOfWeek].label}`,
           );
           return;
@@ -88,10 +91,11 @@ export const OperatingHours: React.FC = () => {
         })),
       });
       setHasChanges(false);
-      alert('Horários salvos com sucesso!');
+      toast.success('Horários salvos com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar horários', error);
-      alert(error.message || 'Erro ao salvar horários');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao salvar horários';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

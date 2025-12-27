@@ -41,6 +41,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Log error for debugging
     if (status >= 500) {
+      const errorDetails = {
+        message: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : undefined,
+        type: exception?.constructor?.name,
+        url: request.url,
+        method: request.method,
+      };
+      console.error('[HTTP_EXCEPTION_FILTER] 500 Error:', JSON.stringify(errorDetails, null, 2));
       this.logger.error(
         `${request.method} ${request.url} - ${status}`,
         exception instanceof Error ? exception.stack : JSON.stringify(exception),

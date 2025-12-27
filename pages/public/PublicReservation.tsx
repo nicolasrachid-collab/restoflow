@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
+import { useToast } from '../../context/ToastContext';
 import { CalendarDays, CheckCircle, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { customerService } from '../../services/customerService';
@@ -9,6 +10,7 @@ import { getAvailableSlots, validatePhone, validateEmail, formatPhone, validateD
 
 export const PublicReservation: React.FC = () => {
   const { slug } = useParams();
+  const toast = useToast();
   const [step, setStep] = useState<'FORM' | 'EMAIL' | 'SUCCESS'>('FORM');
   const [loading, setLoading] = useState(false);
 
@@ -146,7 +148,7 @@ export const PublicReservation: React.FC = () => {
     // Validar limite de pessoas
     const partySizeNum = parseInt(partySize);
     if (partySizeNum < 1) {
-      alert('Número de pessoas deve ser pelo menos 1');
+      toast.error('Número de pessoas deve ser pelo menos 1');
       return;
     }
 
@@ -167,7 +169,7 @@ export const PublicReservation: React.FC = () => {
     } catch (error: any) {
       console.error('Erro ao buscar/criar cliente', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Não foi possível processar seus dados. Tente novamente.';
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -200,10 +202,9 @@ export const PublicReservation: React.FC = () => {
       
       // Verificar se é erro de duplicação
       if (errorMessage.includes('já existe uma reserva')) {
-        alert('Você já possui uma reserva para este dia. Deseja reagendar?');
-        // Aqui poderia abrir modal de reagendamento
+        toast.warning('Você já possui uma reserva para este dia. Por favor, escolha outra data ou entre em contato conosco.');
       } else {
-        alert(errorMessage);
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -235,9 +236,9 @@ export const PublicReservation: React.FC = () => {
       
       // Verificar se é erro de duplicação
       if (errorMessage.includes('já existe uma reserva')) {
-        alert('Você já possui uma reserva pendente ou confirmada para este dia. Por favor, escolha outra data ou entre em contato conosco.');
+        toast.warning('Você já possui uma reserva pendente ou confirmada para este dia. Por favor, escolha outra data ou entre em contato conosco.');
       } else {
-        alert(errorMessage);
+        toast.error(errorMessage);
       }
     }
   };
