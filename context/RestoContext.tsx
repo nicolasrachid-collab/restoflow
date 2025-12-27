@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { QueueItem, MenuItem, Reservation, QueueStatus, ReservationStatus } from '../types';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { api } from '../services/api';
 import { wsService } from '../services/websocket';
 
@@ -25,6 +26,7 @@ const RestoContext = createContext<RestoContextType | undefined>(undefined);
 
 export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
+  const toast = useToast();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -91,9 +93,11 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         partySize: item.partySize,
       });
       refreshData();
-    } catch (e) {
+      toast.success('Cliente adicionado à fila com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao adicionar na fila", e);
-      alert("Erro ao adicionar na fila");
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao adicionar na fila';
+      toast.error(errorMessage);
     }
   };
 
@@ -102,9 +106,12 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setQueue(prev => prev.map(q => q.id === id ? { ...q, status } : q));
     try {
       await api.patch(`/queue/${id}/status`, { status });
-    } catch (e) {
+      toast.success('Status atualizado com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao atualizar status", e);
       refreshData();
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao atualizar status';
+      toast.error(errorMessage);
     }
   };
 
@@ -118,9 +125,11 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         imageUrl: item.imageUrl
       });
       refreshData();
-    } catch (e) {
+      toast.success('Item do menu adicionado com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao criar item", e);
-      alert("Erro ao criar item");
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao criar item';
+      toast.error(errorMessage);
     }
   };
 
@@ -135,10 +144,12 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         imageUrl: item.imageUrl
       });
       refreshData();
-    } catch (e) {
+      toast.success('Item atualizado com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao atualizar item", e);
       refreshData();
-      alert("Erro ao atualizar item");
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao atualizar item';
+      toast.error(errorMessage);
     }
   };
 
@@ -146,8 +157,11 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMenu(prev => prev.filter(i => i.id !== id));
     try {
       await api.delete(`/menu/${id}`);
-    } catch (e) {
+      toast.success('Item removido com sucesso!');
+    } catch (e: any) {
       refreshData();
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao remover item';
+      toast.error(errorMessage);
     }
   };
 
@@ -156,9 +170,11 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       await api.post('/reservations', item);
       refreshData();
-    } catch (e) {
+      toast.success('Reserva criada com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao criar reserva", e);
-      alert("Erro ao criar reserva");
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao criar reserva';
+      toast.error(errorMessage);
     }
   };
 
@@ -167,9 +183,12 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     try {
        await api.patch(`/reservations/${id}/status`, { status });
-    } catch (e) {
+       toast.success('Status da reserva atualizado com sucesso!');
+    } catch (e: any) {
       console.error("Erro ao atualizar reserva", e);
       refreshData();
+      const errorMessage = e?.response?.data?.message || e?.message || 'Erro ao atualizar reserva';
+      toast.error(errorMessage);
     }
   };
 

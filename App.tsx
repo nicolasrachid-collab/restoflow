@@ -4,6 +4,8 @@ import { AdminLayout } from './components/Layout';
 import { PublicLayout } from './components/PublicLayout';
 import { RestoProvider } from './context/RestoContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { ToastContainer } from './components/ui/ToastContainer';
 
 // Admin Pages
 import { Dashboard } from './pages/admin/Dashboard';
@@ -71,11 +73,14 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <RestoProvider>
+      <ToastProvider>
+        <RestoProvider>
           <BrowserRouter>
-             <AppRoutes />
+            <AppRoutes />
+            <ToastContainer />
           </BrowserRouter>
-      </RestoProvider>
+        </RestoProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 };

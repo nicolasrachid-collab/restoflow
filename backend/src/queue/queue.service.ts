@@ -78,12 +78,13 @@ export class QueueService {
     }
 
     // Validar telefone único ativo na fila
+    // Apenas verificar WAITING e NOTIFIED, não CALLED (pois CALLED pode ser antigo)
     const existingActive = await (this.prisma as any).queueItem.findFirst({
       where: {
         restaurantId: restaurant.id,
         phone: data.phone,
         status: {
-          in: [QueueStatus.WAITING, QueueStatus.NOTIFIED, QueueStatus.CALLED],
+          in: [QueueStatus.WAITING, QueueStatus.NOTIFIED],
         },
       },
     });
@@ -166,7 +167,7 @@ export class QueueService {
   }
 
   async getQueue(restaurantId: string) {
-    return (this.prisma as any).queueItem.findMany({
+    return await (this.prisma as any).queueItem.findMany({
       where: { restaurantId },
       orderBy: [
         { manualOrder: 'desc' },

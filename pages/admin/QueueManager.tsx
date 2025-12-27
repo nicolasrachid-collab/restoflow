@@ -3,19 +3,26 @@ import { QueueStatus } from '../../types';
 import { useResto } from '../../context/RestoContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Users, Clock, Phone, CheckCircle, Plus, Link as LinkIcon, Copy, Share2, Bell, X, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
+import { validateRequired, validatePhone } from '../../utils/validation';
+import { formatPhone } from '../../utils/format';
 
 export const QueueManager: React.FC = () => {
-  const { queue, updateQueueStatus, addQueueItem } = useResto();
+  const { queue, updateQueueStatus, addQueueItem, isLoadingData } = useResto();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [partySize, setPartySize] = useState('2');
   const [loading, setLoading] = useState(false);
   const [defaultLink, setDefaultLink] = useState<{ queueUrl: string } | null>(null);
+  const [errors, setErrors] = useState<{ customerName?: string; phone?: string }>({});
 
   useEffect(() => {
     const loadDefaultLink = async () => {
@@ -49,10 +56,12 @@ export const QueueManager: React.FC = () => {
   const handleNotify = async (id: string) => {
     try {
       await api.post(`/queue/${id}/notify`);
+      toast.success('Cliente notificado com sucesso!');
       // refreshData será chamado via WebSocket
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao notificar cliente', error);
-      alert('Erro ao notificar cliente');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao notificar cliente';
+      toast.error(errorMessage);
     }
   };
 
@@ -79,7 +88,7 @@ export const QueueManager: React.FC = () => {
                   variant="secondary"
                   onClick={() => {
                     navigator.clipboard.writeText(queueUrl);
-                    alert('Link copiado!');
+                    toast.success('Link copiado para a área de transferência!');
                   }}
                 >
                   <Copy size={14} className="mr-1" /> Copiar Link
@@ -152,10 +161,28 @@ export const QueueManager: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sortedQueue.length === 0 ? (
+            {isLoadingData ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-4">
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} height={60} width="100%" />
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ) : sortedQueue.length === 0 ? (
                <tr>
-                 <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                   Ninguém na fila no momento.
+                 <td colSpan={5} className="px-6 py-12">
+                   <EmptyState
+                     icon={Users}
+                     title="Nenhum cliente na fila"
+                     description="Quando clientes entrarem na fila através do link público, eles aparecerão aqui."
+                     action={{
+                       label: 'Adicionar Manualmente',
+                       onClick: () => setShowAddModal(true),
+                     }}
+                   />
                  </td>
                </tr>
             ) : sortedQueue.map((item) => {
@@ -288,10 +315,21 @@ export const QueueManager: React.FC = () => {
             <input 
               type="text" 
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
+              onChange={(e) => {
+                setCustomerName(e.target.value);
+                setErrors({ ...errors, customerName: undefined });
+              }}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                errors.customerName ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Ex: João Silva"
             />
+            {errors.customerName && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} />
+                {errors.customerName}
+              </p>
+            )}
           </div>
 
           <div>
@@ -299,10 +337,26 @@ export const QueueManager: React.FC = () => {
             <input 
               type="tel" 
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
+              onChange={(e) => {
+                const formatted = formatPhone(e.target.value);
+                setPhone(formatted);
+                if (formatted && !validatePhone(formatted)) {
+                  setErrors({ ...errors, phone: 'Telefone inválido' });
+                } else {
+                  setErrors({ ...errors, phone: undefined });
+                }
+              }}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                errors.phone ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="(11) 99999-9999"
             />
+            {errors.phone && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} />
+                {errors.phone}
+              </p>
+            )}
           </div>
 
           <div>
@@ -324,21 +378,41 @@ export const QueueManager: React.FC = () => {
             </Button>
             <Button 
               onClick={async () => {
-                if (!customerName || !phone) {
-                  alert('Preencha todos os campos');
+                const newErrors: typeof errors = {};
+                
+                if (!validateRequired(customerName)) {
+                  newErrors.customerName = 'Nome é obrigatório';
+                }
+                
+                if (!validateRequired(phone)) {
+                  newErrors.phone = 'Telefone é obrigatório';
+                } else if (!validatePhone(phone)) {
+                  newErrors.phone = 'Telefone inválido';
+                }
+
+                if (Object.keys(newErrors).length > 0) {
+                  setErrors(newErrors);
+                  toast.error('Por favor, corrija os erros no formulário');
                   return;
                 }
+
                 setLoading(true);
-                await addQueueItem({
-                  customerName,
-                  phone,
-                  partySize: parseInt(partySize),
-                });
-                setLoading(false);
-                setShowAddModal(false);
-                setCustomerName('');
-                setPhone('');
-                setPartySize('2');
+                try {
+                  await addQueueItem({
+                    customerName,
+                    phone,
+                    partySize: parseInt(partySize),
+                  });
+                  setShowAddModal(false);
+                  setCustomerName('');
+                  setPhone('');
+                  setPartySize('2');
+                  setErrors({});
+                } catch (error) {
+                  // Error já é tratado no addQueueItem via toast
+                } finally {
+                  setLoading(false);
+                }
               }}
               isLoading={loading}
               className="flex-1"

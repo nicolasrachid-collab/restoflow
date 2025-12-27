@@ -13,6 +13,8 @@ interface RestaurantConfig {
   maxPartySize: number;
   averageTableTimeMinutes: number;
   calledTimeoutMinutes: number;
+  minReservationAdvanceHours: number;
+  maxReservationAdvanceDays: number;
 }
 
 export const RestaurantSettings: React.FC = () => {
@@ -27,6 +29,8 @@ export const RestaurantSettings: React.FC = () => {
     maxPartySize: 20,
     averageTableTimeMinutes: 45,
     calledTimeoutMinutes: 10,
+    minReservationAdvanceHours: 2,
+    maxReservationAdvanceDays: 30,
   });
 
   useEffect(() => {
@@ -43,6 +47,8 @@ export const RestaurantSettings: React.FC = () => {
         maxPartySize: data.maxPartySize,
         averageTableTimeMinutes: data.averageTableTimeMinutes,
         calledTimeoutMinutes: data.calledTimeoutMinutes,
+        minReservationAdvanceHours: data.minReservationAdvanceHours || 2,
+        maxReservationAdvanceDays: data.maxReservationAdvanceDays || 30,
       });
       setHasChanges(false);
     } catch (error) {
@@ -74,6 +80,14 @@ export const RestaurantSettings: React.FC = () => {
     }
     if (formData.calledTimeoutMinutes < 1 || formData.calledTimeoutMinutes > 60) {
       alert('O timeout de chamada deve estar entre 1 e 60 minutos');
+      return;
+    }
+    if (formData.minReservationAdvanceHours < 0 || formData.minReservationAdvanceHours > 168) {
+      alert('A antecedência mínima deve estar entre 0 e 168 horas (7 dias)');
+      return;
+    }
+    if (formData.maxReservationAdvanceDays < 1 || formData.maxReservationAdvanceDays > 365) {
+      alert('A antecedência máxima deve estar entre 1 e 365 dias');
       return;
     }
 
@@ -189,6 +203,42 @@ export const RestaurantSettings: React.FC = () => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Configurações de Fila</h3>
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Antecedência Mínima de Reserva (horas)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="168"
+                value={formData.minReservationAdvanceHours}
+                onChange={(e) =>
+                  handleInputChange('minReservationAdvanceHours', parseInt(e.target.value, 10))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Tempo mínimo de antecedência necessário para fazer uma reserva
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Antecedência Máxima de Reserva (dias)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={formData.maxReservationAdvanceDays}
+                onChange={(e) =>
+                  handleInputChange('maxReservationAdvanceDays', parseInt(e.target.value, 10))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Tempo máximo de antecedência permitido para fazer uma reserva
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tamanho Máximo do Grupo

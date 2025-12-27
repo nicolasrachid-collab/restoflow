@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { CalendarDays, CheckCircle, Mail } from 'lucide-react';
+import { CalendarDays, CheckCircle, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { customerService } from '../../services/customerService';
 import { Customer } from '../../types';
+import { getAvailableSlots, validatePhone, validateEmail, formatPhone, validateDateRange } from '../../services/reservationService';
 
 export const PublicReservation: React.FC = () => {
   const { slug } = useParams();
@@ -23,24 +24,122 @@ export const PublicReservation: React.FC = () => {
   // Customer State
   const [customer, setCustomer] = useState<Customer | null>(null);
 
-  // Generate simple time slots
-  const timeSlots = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+  // Available slots state
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Validation errors
+  const [errors, setErrors] = useState<{
+    date?: string;
+    time?: string;
+    phone?: string;
+    email?: string;
+    name?: string;
+  }>({});
+
+  // Load available slots when date changes
+  useEffect(() => {
+    if (date && slug) {
+      loadAvailableSlots();
+    } else {
+      setAvailableSlots([]);
+      setTime('');
+    }
+  }, [date, slug]);
+
+  const loadAvailableSlots = async () => {
+    if (!date || !slug) return;
+    
+    setLoadingSlots(true);
+    try {
+      const slots = await getAvailableSlots(slug, date);
+      setAvailableSlots(slots);
+      
+      // Se o horário atual não está disponível, limpar seleção
+      if (time && !slots.includes(time)) {
+        setTime('');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar horários disponíveis', error);
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleDateChange = (selectedDate: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (selectedDate < today) {
+      setErrors({ ...errors, date: 'Não é possível fazer reserva para datas passadas' });
+      return;
+    }
+    
+    setDate(selectedDate);
+    setErrors({ ...errors, date: undefined });
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    if (value && !validatePhone(value)) {
+      setErrors({ ...errors, phone: 'Formato de telefone inválido' });
+    } else {
+      setErrors({ ...errors, phone: undefined });
+    }
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (value && !validateEmail(value)) {
+      setErrors({ ...errors, email: 'Formato de email inválido' });
+    } else {
+      setErrors({ ...errors, email: undefined });
+    }
+  };
 
   const handleBasicInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !time || !slug) {
-      alert("Por favor, selecione data e horário.");
+    
+    // Reset errors
+    const newErrors: typeof errors = {};
+
+    // Validar campos obrigatórios
+    if (!name.trim()) {
+      newErrors.name = 'Nome é obrigatório';
+    }
+    
+    if (!phone.trim()) {
+      newErrors.phone = 'Telefone é obrigatório';
+    } else if (!validatePhone(phone)) {
+      newErrors.phone = 'Formato de telefone inválido';
+    }
+
+    if (!email.trim()) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Formato de email inválido';
+    }
+
+    if (!date) {
+      newErrors.date = 'Data é obrigatória';
+    }
+
+    if (!time) {
+      newErrors.time = 'Horário é obrigatório';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    // Validar data não no passado
+    // Validar data e horário
     const [year, month, day] = date.split('-').map(Number);
     const [hour, minute] = time.split(':').map(Number);
     const reservationDate = new Date(year, month - 1, day, hour, minute);
-    const now = new Date();
-
-    if (reservationDate < now) {
-      alert('Não é possível fazer reserva para datas/horários passados.');
+    
+    const dateValidation = validateDateRange(reservationDate);
+    if (!dateValidation.valid) {
+      setErrors({ ...newErrors, date: dateValidation.error });
       return;
     }
 
@@ -78,6 +177,12 @@ export const PublicReservation: React.FC = () => {
     e.preventDefault();
     if (!customer || !slug) return;
 
+    // Validar email se fornecido
+    if (email.trim() && !validateEmail(email.trim())) {
+      setErrors({ ...errors, email: 'Formato de email inválido' });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -89,10 +194,17 @@ export const PublicReservation: React.FC = () => {
 
       // Criar reserva
       await createReservation(customer.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar cliente', error);
-      // Mesmo com erro, tentar criar reserva
-      await createReservation(customer.id);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao processar reserva';
+      
+      // Verificar se é erro de duplicação
+      if (errorMessage.includes('já existe uma reserva')) {
+        alert('Você já possui uma reserva para este dia. Deseja reagendar?');
+        // Aqui poderia abrir modal de reagendamento
+      } else {
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -120,7 +232,13 @@ export const PublicReservation: React.FC = () => {
     } catch (error: any) {
       console.error("Erro ao reservar", error);
       const errorMessage = error?.response?.data?.message || error?.message || "Não foi possível realizar a reserva. Tente novamente.";
-      alert(errorMessage);
+      
+      // Verificar se é erro de duplicação
+      if (errorMessage.includes('já existe uma reserva')) {
+        alert('Você já possui uma reserva pendente ou confirmada para este dia. Por favor, escolha outra data ou entre em contato conosco.');
+      } else {
+        alert(errorMessage);
+      }
     }
   };
 
@@ -221,17 +339,17 @@ export const PublicReservation: React.FC = () => {
                 type="date" 
                 min={new Date().toISOString().split('T')[0]}
                 value={date}
-                onChange={(e) => {
-                  const selectedDate = e.target.value;
-                  const today = new Date().toISOString().split('T')[0];
-                  if (selectedDate < today) {
-                    alert('Não é possível fazer reserva para datas passadas');
-                    return;
-                  }
-                  setDate(selectedDate);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                onChange={(e) => handleDateChange(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                  errors.date ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
+            {errors.date && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} />
+                {errors.date}
+              </p>
+            )}
         </div>
              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pessoas</label>
@@ -248,13 +366,33 @@ export const PublicReservation: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Horário Disponível</label>
-            <div className="grid grid-cols-3 gap-2">
-                {timeSlots.map(t => (
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Horário Disponível
+              {loadingSlots && (
+                <span className="ml-2 text-xs text-gray-500 flex items-center gap-1">
+                  <Loader2 size={12} className="animate-spin" />
+                  Carregando...
+                </span>
+              )}
+            </label>
+            {!date ? (
+              <p className="text-sm text-gray-500 py-4 text-center">
+                Selecione uma data para ver os horários disponíveis
+              </p>
+            ) : availableSlots.length === 0 && !loadingSlots ? (
+              <p className="text-sm text-amber-600 py-4 text-center bg-amber-50 rounded-lg border border-amber-200">
+                Não há horários disponíveis para esta data
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {availableSlots.map(t => (
                     <button
                         key={t}
                         type="button"
-                        onClick={() => setTime(t)}
+                        onClick={() => {
+                          setTime(t);
+                          setErrors({ ...errors, time: undefined });
+                        }}
                         className={`py-2 text-sm font-medium rounded-lg border transition-colors ${
                             time === t 
                             ? 'bg-orange-600 text-white border-orange-600' 
@@ -264,7 +402,14 @@ export const PublicReservation: React.FC = () => {
                         {t}
                     </button>
                 ))}
-            </div>
+              </div>
+            )}
+            {errors.time && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} />
+                {errors.time}
+              </p>
+            )}
         </div>
 
         <div className="pt-2 border-t border-gray-100 mt-2">
@@ -274,10 +419,21 @@ export const PublicReservation: React.FC = () => {
                     required
                     type="text" 
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setErrors({ ...errors, name: undefined });
+                    }}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Ex: Ana Souza"
                 />
+                {errors.name && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    {errors.name}
+                  </p>
+                )}
             </div>
 
             <div className="mb-3">
@@ -286,10 +442,38 @@ export const PublicReservation: React.FC = () => {
                     required
                     type="tel" 
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="(11) 99999-9999"
                 />
+                {errors.phone && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    {errors.phone}
+                  </p>
+                )}
+            </div>
+
+            <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input 
+                    required
+                    type="email" 
+                    value={email}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="seu@email.com"
+                />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    {errors.email}
+                  </p>
+                )}
             </div>
             
              <div className="mb-3">

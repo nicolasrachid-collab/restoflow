@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { UserRole } from '../../types';
-import { Plus, Edit, Trash2, UserPlus, Lock, Unlock, Key } from 'lucide-react';
+import { Plus, Edit, Trash2, UserPlus, Lock, Unlock, Key, Users as UsersIcon } from 'lucide-react';
 
 interface User {
   id: string;
@@ -19,11 +23,14 @@ interface User {
 
 export const Users: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const toast = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -48,11 +55,22 @@ export const Users: React.FC = () => {
 
   const loadUsers = async () => {
     try {
+      setLoading(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/dbeba631-e9e7-4094-9f61-38418196391d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Users.tsx:49',message:'loadUsers called',data:{endpoint:'/users'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       const data = await api.get<User[]>('/users');
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/dbeba631-e9e7-4094-9f61-38418196391d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Users.tsx:52',message:'Users loaded successfully',data:{count:data?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       setUsers(data);
-    } catch (error) {
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/dbeba631-e9e7-4094-9f61-38418196391d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Users.tsx:55',message:'Error loading users',data:{errorMessage:error?.message,errorName:error?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.error('Erro ao carregar usuários', error);
-      alert('Erro ao carregar usuários');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar usuários';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -70,12 +88,12 @@ export const Users: React.FC = () => {
 
   const handleCreate = async () => {
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
-      alert('Preencha todos os campos obrigatórios');
+      toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
     if (formData.password.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres');
+      toast.error('A senha deve ter pelo menos 6 caracteres');
       return;
     }
 
@@ -85,9 +103,11 @@ export const Users: React.FC = () => {
       resetForm();
       setShowCreateModal(false);
       loadUsers();
+      toast.success('Usuário criado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao criar usuário', error);
-      alert(error.message || 'Erro ao criar usuário');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao criar usuário';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -107,7 +127,7 @@ export const Users: React.FC = () => {
 
   const handleUpdate = async () => {
     if (!editingUser || !formData.name.trim() || !formData.email.trim()) {
-      alert('Preencha todos os campos obrigatórios');
+      toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
@@ -124,25 +144,34 @@ export const Users: React.FC = () => {
       resetForm();
       setShowEditModal(false);
       loadUsers();
+      toast.success('Usuário atualizado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao atualizar usuário', error);
-      alert(error.message || 'Erro ao atualizar usuário');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao atualizar usuário';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário?')) {
-      return;
-    }
+  const handleDelete = (id: string) => {
+    setDeletingUserId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingUserId) return;
 
     try {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users/${deletingUserId}`);
       loadUsers();
+      toast.success('Usuário excluído com sucesso!');
+      setShowDeleteModal(false);
+      setDeletingUserId(null);
     } catch (error: any) {
       console.error('Erro ao excluir usuário', error);
-      alert(error.message || 'Erro ao excluir usuário');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao excluir usuário';
+      toast.error(errorMessage);
     }
   };
 
@@ -150,13 +179,16 @@ export const Users: React.FC = () => {
     try {
       if (user.isActive) {
         await api.patch(`/users/${user.id}/deactivate`, {});
+        toast.success('Usuário desativado com sucesso!');
       } else {
         await api.patch(`/users/${user.id}/activate`, {});
+        toast.success('Usuário ativado com sucesso!');
       }
       loadUsers();
     } catch (error: any) {
       console.error('Erro ao alterar status do usuário', error);
-      alert(error.message || 'Erro ao alterar status do usuário');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao alterar status do usuário';
+      toast.error(errorMessage);
     }
   };
 
@@ -164,12 +196,12 @@ export const Users: React.FC = () => {
     if (!editingUser) return;
 
     if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres');
+      toast.error('A senha deve ter pelo menos 6 caracteres');
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('As senhas não coincidem');
+      toast.error('As senhas não coincidem');
       return;
     }
 
@@ -181,10 +213,11 @@ export const Users: React.FC = () => {
       setPasswordData({ newPassword: '', confirmPassword: '' });
       setShowPasswordModal(false);
       setEditingUser(null);
-      alert('Senha alterada com sucesso!');
+      toast.success('Senha alterada com sucesso!');
     } catch (error: any) {
       console.error('Erro ao alterar senha', error);
-      alert(error.message || 'Erro ao alterar senha');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao alterar senha';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -198,8 +231,20 @@ export const Users: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Carregando usuários...</div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton height={32} width={200} className="mb-2" />
+            <Skeleton height={20} width={300} />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="space-y-2 p-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} height={60} width="100%" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -256,7 +301,26 @@ export const Users: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12">
+                    <EmptyState
+                      icon={UsersIcon}
+                      title="Nenhum usuário encontrado"
+                      description="Crie o primeiro usuário para começar a gerenciar o restaurante."
+                      action={
+                        isAdmin
+                          ? {
+                              label: 'Criar Usuário',
+                              onClick: () => setShowCreateModal(true),
+                            }
+                          : undefined
+                      }
+                    />
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -334,7 +398,8 @@ export const Users: React.FC = () => {
                     </td>
                   )}
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
@@ -550,6 +615,22 @@ export const Users: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirm Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingUserId(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Excluir Usuário"
+        message="Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={saving}
+      />
     </div>
   );
 };

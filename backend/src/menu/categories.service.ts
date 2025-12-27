@@ -11,7 +11,7 @@ export class CategoriesService {
   ) {}
 
   async findAll(restaurantId: string) {
-    return (this.prisma as any).category.findMany({
+    return await (this.prisma as any).category.findMany({
       where: { restaurantId },
       orderBy: { displayOrder: 'asc' },
       include: {

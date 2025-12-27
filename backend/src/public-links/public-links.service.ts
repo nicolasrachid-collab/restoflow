@@ -97,7 +97,7 @@ export class PublicLinksService {
       throw new NotFoundException('Link não encontrado');
     }
 
-    return (this.prisma as any).publicLink.update({
+    return await (this.prisma as any).publicLink.update({
       where: { id },
       data: { isActive: false },
     });
@@ -112,7 +112,7 @@ export class PublicLinksService {
       throw new NotFoundException('Link não encontrado');
     }
 
-    return (this.prisma as any).publicLink.update({
+    return await (this.prisma as any).publicLink.update({
       where: { id },
       data: { isActive: true },
     });
