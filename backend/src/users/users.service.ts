@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { User, Prisma, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
+import * as http from 'http';
+
+// Tipo que aceita password (plain text) ou passwordHash
+type CreateUserInput = Omit<Prisma.UserCreateInput, 'passwordHash'> & {
+  password?: string;
+  passwordHash?: string;
+};
 
 @Injectable()
 export class UsersService {
@@ -18,7 +25,14 @@ export class UsersService {
     });
   }
 
-  async create(data: Prisma.UserCreateInput, createdByUserId: string, createdByRole: UserRole): Promise<User> {
+  async create(data: CreateUserInput, createdByUserId: string, createdByRole: UserRole): Promise<User> {
+    // #region agent log
+    try {
+      const logData = JSON.stringify({location:'users.service.ts:21',message:'create() - received data',data:{hasPassword:!!(data as any).password,hasPasswordHash:!!(data as any).passwordHash,email:(data as any).email},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'});
+      const options = {hostname:'127.0.0.1',port:7245,path:'/ingest/dbeba631-e9e7-4094-9f61-38418196391d',method:'POST',headers:{'Content-Type':'application/json'}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch (e) {}
+    // #endregion
     // Validar permissões: apenas ADMIN pode criar usuários
     if (createdByRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Apenas administradores podem criar usuários');
@@ -33,11 +47,40 @@ export class UsersService {
       throw new BadRequestException('Email já cadastrado');
     }
 
+    // Se receber password (plain text), fazer hash antes de criar
+    let passwordHash = (data as any).passwordHash;
+    if ((data as any).password && !passwordHash) {
+      // #region agent log
+      try {
+        const logData = JSON.stringify({location:'users.service.ts:40',message:'create() - hashing password',data:{hasPassword:true},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'});
+        const options = {hostname:'127.0.0.1',port:7245,path:'/ingest/dbeba631-e9e7-4094-9f61-38418196391d',method:'POST',headers:{'Content-Type':'application/json'}};
+        const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      } catch (e) {}
+      // #endregion
+      passwordHash = await bcrypt.hash((data as any).password, 10);
+    }
+
+    if (!passwordHash) {
+      throw new BadRequestException('Password ou passwordHash é obrigatório');
+    }
+
+    // Remover password do objeto antes de passar para Prisma
+    const { password, ...prismaData } = data as any;
+    
+    // #region agent log
+    try {
+      const logData = JSON.stringify({location:'users.service.ts:52',message:'create() - before Prisma create',data:{hasPasswordHash:!!passwordHash},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'});
+      const options = {hostname:'127.0.0.1',port:7245,path:'/ingest/dbeba631-e9e7-4094-9f61-38418196391d',method:'POST',headers:{'Content-Type':'application/json'}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch (e) {}
+    // #endregion
+    
     const user = await (this.prisma as any).user.create({
       data: {
-        ...data,
-        isActive: (data as any).isActive !== undefined ? (data as any).isActive : true,
-        mustChangePassword: (data as any).mustChangePassword !== undefined ? (data as any).mustChangePassword : true,
+        ...prismaData,
+        passwordHash,
+        isActive: prismaData.isActive !== undefined ? prismaData.isActive : true,
+        mustChangePassword: prismaData.mustChangePassword !== undefined ? prismaData.mustChangePassword : true,
       },
     });
 
@@ -122,21 +165,30 @@ export class UsersService {
   }
 
   async findAll(restaurantId: string) {
-    return (this.prisma as any).user.findMany({
-      where: { restaurantId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        mustChangePassword: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (!restaurantId) {
+      throw new BadRequestException('RestaurantId é obrigatório');
+    }
+    
+    try {
+      return (this.prisma as any).user.findMany({
+        where: { restaurantId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          mustChangePassword: true,
+          lastLoginAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      throw new BadRequestException('Erro ao buscar usuários');
+    }
   }
 
   async findById(id: string, restaurantId: string) {
