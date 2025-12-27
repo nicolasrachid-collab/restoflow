@@ -47,8 +47,10 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setQueue(queueData);
       setMenu(menuData);
       setReservations(reservationData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dados", error);
+      const errorMessage = error?.message || 'Erro ao carregar dados. Tente novamente.';
+      toast.error(errorMessage);
     } finally {
       setIsLoadingData(false);
     }
@@ -61,12 +63,39 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const socket = wsService.connect();
       socketRef.current = socket;
 
-      // Join restaurant room
-      socket.emit('join-restaurant', { restaurantId: user.restaurantId });
+      // Aguarda conexão antes de emitir eventos
+      const setupSocket = async () => {
+        const connected = await wsService.waitForConnection(5000);
+        
+        if (connected) {
+          // Join restaurant room
+          wsService.safeEmit('join-restaurant', { restaurantId: user.restaurantId });
+        } else {
+          console.warn('WebSocket não conectado a tempo, usando polling');
+          toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
+        }
+      };
+
+      setupSocket();
 
       // Listen for queue updates
       socket.on('queue-updated', (queueData: QueueItem[]) => {
         setQueue(queueData);
+      });
+
+      // Listen for errors
+      socket.on('error', (error: any) => {
+        console.error('Erro no WebSocket:', error);
+        toast.error(error?.message || 'Erro na conexão em tempo real');
+      });
+
+      // Listen for connection status
+      const unsubscribeError = wsService.onError((error) => {
+        console.error('Erro de conexão WebSocket:', error);
+        // Não mostra toast para tentativas de reconexão intermediárias
+        if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
+          toast.error(error.message);
+        }
       });
 
       // Initial data load
@@ -74,6 +103,8 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       return () => {
         socket.off('queue-updated');
+        socket.off('error');
+        unsubscribeError();
         wsService.disconnect();
       };
     } else {
@@ -81,7 +112,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       wsService.disconnect();
       socketRef.current = null;
     }
-  }, [isAuthenticated, user?.restaurantId, refreshData]);
+  }, [isAuthenticated, user?.restaurantId, refreshData, toast]);
 
   // --- ACTIONS ---
 

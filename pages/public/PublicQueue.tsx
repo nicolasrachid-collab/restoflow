@@ -91,8 +91,9 @@ export const PublicQueue: React.FC = () => {
           setTicketStatus(data.status);
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
-        } catch (e) {
+        } catch (e: any) {
           console.error("Erro ao atualizar posição", e);
+          // Não mostra toast para evitar spam, apenas loga
         }
       };
 
@@ -101,7 +102,19 @@ export const PublicQueue: React.FC = () => {
 
       // Connect to WebSocket for real-time updates
       const socket = wsService.connect();
-      socket.emit('join-public-queue', { slug, ticketId });
+      
+      // Aguarda conexão antes de emitir eventos
+      const setupSocket = async () => {
+        const connected = await wsService.waitForConnection(5000);
+        
+        if (connected) {
+          wsService.safeEmit('join-public-queue', { slug, ticketId });
+        } else {
+          console.warn('WebSocket não conectado a tempo, usando apenas polling');
+        }
+      };
+
+      setupSocket();
 
       // Listen for position updates
       socket.on('position-updated', (data: {
@@ -132,6 +145,21 @@ export const PublicQueue: React.FC = () => {
         setWaitingCount(data.waitingCount);
       });
 
+      // Listen for errors
+      socket.on('error', (error: any) => {
+        console.error('Erro no WebSocket:', error);
+        // Não mostra toast para evitar spam, apenas loga
+      });
+
+      // Listen for connection errors
+      const unsubscribeError = wsService.onError((error) => {
+        console.error('Erro de conexão WebSocket:', error);
+        // Não mostra toast para tentativas de reconexão intermediárias
+        if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
+          toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
+        }
+      });
+
       // Fallback polling (less frequent, only if WebSocket fails)
       const interval = setInterval(fetchPosition, 30000); // 30s fallback
 
@@ -139,10 +167,12 @@ export const PublicQueue: React.FC = () => {
         socket.off('position-updated');
         socket.off('status-changed');
         socket.off('queue-status-updated');
+        socket.off('error');
+        unsubscribeError();
         clearInterval(interval);
       };
     }
-  }, [view, slug, ticketId]);
+  }, [view, slug, ticketId, toast]);
 
   const handleNameChange = (value: string) => {
     setName(value);
