@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Users, Clock, CheckCircle, AlertTriangle, Mail, AlertCircle } from 'lucide-react';
@@ -47,6 +47,7 @@ export const PublicQueue: React.FC = () => {
   const [ticketStatus, setTicketStatus] = useState<string>('WAITING');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [calledTimeoutMinutes, setCalledTimeoutMinutes] = useState<number>(10);
+  const previousStatusRef = useRef<string>('WAITING');
 
   // Load queue info when on JOIN view
   useEffect(() => {
@@ -71,6 +72,15 @@ export const PublicQueue: React.FC = () => {
     }
   }, [slug, view, toast]);
 
+  // Forçar atualização visual quando status muda para CALLED
+  useEffect(() => {
+    if (ticketStatus?.toUpperCase() === 'CALLED' && view === 'STATUS') {
+      console.log('🔔 Status é CALLED! Forçando atualização da tela...');
+      // Força re-render garantindo que o estado está atualizado
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [ticketStatus, view]);
+
   // WebSocket + Fallback Polling for position updates
   useEffect(() => {
     if (view === 'STATUS' && slug && ticketId) {
@@ -90,7 +100,25 @@ export const PublicQueue: React.FC = () => {
           setPosition(data.position);
           setWaitingCount(data.waitingCount);
           setEstimatedWaitMinutes(data.estimatedWaitMinutes);
-          setTicketStatus(data.status);
+          
+          // Atualizar status sempre (normalizar para maiúsculas)
+          const normalizedStatus = data.status?.toUpperCase() || 'WAITING';
+          const wasCalled = normalizedStatus === 'CALLED' && previousStatusRef.current !== 'CALLED';
+          
+          // Sempre atualizar o status
+          setTicketStatus(normalizedStatus);
+          
+          // Detectar mudança para CALLED e mostrar aviso
+          if (wasCalled) {
+            console.log('🔔 Status mudou para CALLED! Atualizando tela...');
+            toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
+            // Scroll para o topo para garantir que a tela seja visível
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+          }
+          
+          previousStatusRef.current = normalizedStatus;
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
         } catch (e: any) {
@@ -135,7 +163,27 @@ export const PublicQueue: React.FC = () => {
           setPosition(data.position);
           setWaitingCount(data.waitingCount);
           setEstimatedWaitMinutes(data.estimatedWaitMinutes);
-          if (data.status) setTicketStatus(data.status);
+          
+          // Atualizar status sempre (normalizar para maiúsculas)
+          if (data.status) {
+            const normalizedStatus = data.status.toUpperCase();
+            const wasCalled = normalizedStatus === 'CALLED' && previousStatusRef.current !== 'CALLED';
+            
+            // Sempre atualizar o status
+            setTicketStatus(normalizedStatus);
+            
+            // Detectar mudança para CALLED e mostrar aviso
+            if (wasCalled) {
+              console.log('🔔 Status mudou para CALLED via WebSocket! Atualizando tela...');
+              toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
+              // Scroll para o topo para garantir que a tela seja visível
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }, 100);
+            }
+            
+            previousStatusRef.current = normalizedStatus;
+          }
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
         });
@@ -143,7 +191,22 @@ export const PublicQueue: React.FC = () => {
         // Listen for status changes
         socket.on('status-changed', (data: { status: string; ticketId: string }) => {
           if (data.ticketId === ticketId) {
-            setTicketStatus(data.status);
+            // Atualizar status sempre (normalizar para maiúsculas)
+            const normalizedStatus = data.status.toUpperCase();
+            const wasCalled = normalizedStatus === 'CALLED' && previousStatusRef.current !== 'CALLED';
+            setTicketStatus(normalizedStatus);
+            
+            // Detectar mudança para CALLED e mostrar aviso
+            if (wasCalled) {
+              console.log('🔔 Status mudou para CALLED via status-changed! Atualizando tela...');
+              toast.success('🔔 Você foi chamado(a)! Dirija-se ao balcão.', 10000); // 10 segundos
+              // Scroll para o topo para garantir que a tela seja visível
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }, 100);
+            }
+            
+            previousStatusRef.current = normalizedStatus;
           }
         });
 
@@ -278,38 +341,53 @@ export const PublicQueue: React.FC = () => {
   };
 
 
-  // Show CALLED status screen
-  if (view === 'STATUS' && ticketStatus === 'CALLED') {
+  // Show CALLED status screen (verificar com normalização)
+  const isCalled = ticketStatus?.toUpperCase() === 'CALLED';
+  
+  // Debug log (apenas em desenvolvimento)
+  if (view === 'STATUS' && typeof window !== 'undefined') {
+    console.log('🔍 Renderização:', { view, ticketStatus, isCalled, shouldShowCalled: view === 'STATUS' && isCalled });
+  }
+  
+  if (view === 'STATUS' && isCalled) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border-4 border-orange-500 p-8 text-center space-y-6 animate-pulse">
-        <div className="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center text-white mx-auto animate-bounce">
-          <AlertTriangle size={40} />
-        </div>
-        
-        <div>
-          <h2 className="text-3xl font-bold text-orange-600 mb-2">VOCÊ FOI CHAMADO!</h2>
-          <p className="text-lg text-gray-700">Sua mesa está pronta!</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-red-50">
+        <div className="bg-white rounded-2xl shadow-2xl border-4 border-orange-500 p-8 text-center space-y-6 max-w-md w-full animate-pulse">
+          <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center text-white mx-auto animate-bounce">
+            <AlertTriangle size={48} />
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-4xl font-bold text-orange-600 mb-2 animate-pulse">VOCÊ FOI CHAMADO!</h2>
+            <p className="text-xl text-gray-700 font-semibold">Sua mesa está pronta!</p>
+          </div>
 
-        <div className="bg-orange-100 p-6 rounded-lg border-2 border-orange-300">
-          <p className="text-xl font-semibold text-orange-900">
-            Por favor, dirija-se à recepção do restaurante agora!
-          </p>
-        </div>
+          <div className="bg-orange-100 p-6 rounded-lg border-2 border-orange-300 animate-pulse">
+            <p className="text-2xl font-bold text-orange-900">
+              🔔 Dirija-se à recepção AGORA!
+            </p>
+          </div>
 
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-          <p className="text-sm text-amber-800">
-            <strong>Importante:</strong> Você tem {calledTimeoutMinutes} minutos para comparecer.
-          </p>
-        </div>
+          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+            <p className="text-sm text-amber-800">
+              <strong>⏰ Importante:</strong> Você tem {calledTimeoutMinutes} minutos para comparecer.
+            </p>
+          </div>
 
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <p className="text-sm text-blue-800">
-            <strong>Restaurante:</strong> {restaurantName || 'Aguardando informações...'}
-          </p>
-        </div>
+          {restaurantName && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>📍 Restaurante:</strong> {restaurantName}
+              </p>
+            </div>
+          )}
 
-        <Button variant="ghost" onClick={() => window.location.reload()}>Sair da tela</Button>
+          <div className="pt-4">
+            <Button variant="ghost" onClick={() => window.location.reload()}>
+              Sair da tela
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

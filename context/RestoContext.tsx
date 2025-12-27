@@ -172,11 +172,20 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateQueueStatus = async (id: string, status: QueueStatus) => {
+    // Buscar o item antes de atualizar para mostrar o nome
+    const item = queue.find(q => q.id === id);
+    
     // Optimistic Update
     setQueue(prev => prev.map(q => q.id === id ? { ...q, status } : q));
     try {
       await api.patch(`/queue/${id}/status`, { status });
-      toast.success('Status atualizado com sucesso!');
+      
+      // Mostrar aviso específico quando chamado
+      if (status === QueueStatus.CALLED && item) {
+        toast.success(`🔔 ${item.customerName} foi chamado(a)!`, 5000); // 5 segundos
+      } else {
+        toast.success('Status atualizado com sucesso!');
+      }
     } catch (e: any) {
       console.error("Erro ao atualizar status", e);
       refreshData();

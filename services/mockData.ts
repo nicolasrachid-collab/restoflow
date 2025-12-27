@@ -249,6 +249,23 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
         if (status === QueueStatus.NOTIFIED) {
           item.notifiedAt = new Date();
         }
+        
+        // Recalcular posições de todos os itens aguardando quando status muda
+        const waitingItems = mockQueue.filter(q => 
+          q.status === QueueStatus.WAITING || q.status === QueueStatus.NOTIFIED
+        ).sort((a, b) => {
+          // Ordenar por joinedAt (quem chegou primeiro) ou position (se houver ordem manual)
+          if (a.manualOrder && b.manualOrder) {
+            return a.position - b.position;
+          }
+          return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+        });
+        
+        // Atualizar posições
+        waitingItems.forEach((q, index) => {
+          q.position = index + 1;
+        });
+        
         queueStorage.save(mockQueue);
       }
       return item as T;
@@ -258,9 +275,24 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
       const parts = endpoint.split('/');
       const ticketId = parts[parts.length - 1];
       const item = mockQueue.find(q => q.id === ticketId) || mockQueue[0];
+      
+      // Recalcular posição baseada apenas em quem está aguardando (WAITING ou NOTIFIED)
+      const waitingItems = mockQueue.filter(q => 
+        q.status === QueueStatus.WAITING || q.status === QueueStatus.NOTIFIED
+      ).sort((a, b) => {
+        // Ordenar por joinedAt (quem chegou primeiro) ou position (se houver ordem manual)
+        if (a.manualOrder && b.manualOrder) {
+          return a.position - b.position;
+        }
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      });
+      
+      const actualPosition = waitingItems.findIndex(q => q.id === ticketId) + 1;
+      const waitingCount = waitingItems.length;
+      
       return {
-        position: item.position,
-        waitingCount: mockQueue.filter(q => q.status === QueueStatus.WAITING).length,
+        position: actualPosition || item.position,
+        waitingCount: waitingCount,
         estimatedWaitMinutes: item.estimatedWaitMinutes || 15,
         status: item.status,
         restaurantName: mockRestaurant.name,
@@ -270,8 +302,13 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
 
     if (endpoint.startsWith('/queue/public/') && !endpoint.includes('/ticket/')) {
       const slug = endpoint.split('/queue/public/')[1];
+      // Contar apenas quem está realmente aguardando (WAITING ou NOTIFIED)
+      const waitingCount = mockQueue.filter(q => 
+        q.status === QueueStatus.WAITING || q.status === QueueStatus.NOTIFIED
+      ).length;
+      
       return {
-        waitingCount: mockQueue.filter(q => q.status === QueueStatus.WAITING).length,
+        waitingCount: waitingCount,
         averageWaitMinutes: 20,
         restaurantName: mockRestaurant.name,
       } as T;
@@ -521,9 +558,24 @@ export const mockApi: MockApi = {
       const parts = endpoint.split('/');
       const ticketId = parts[parts.length - 1];
       const item = mockQueue.find(q => q.id === ticketId) || mockQueue[0];
+      
+      // Recalcular posição baseada apenas em quem está aguardando (WAITING ou NOTIFIED)
+      const waitingItems = mockQueue.filter(q => 
+        q.status === QueueStatus.WAITING || q.status === QueueStatus.NOTIFIED
+      ).sort((a, b) => {
+        // Ordenar por joinedAt (quem chegou primeiro) ou position (se houver ordem manual)
+        if (a.manualOrder && b.manualOrder) {
+          return a.position - b.position;
+        }
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      });
+      
+      const actualPosition = waitingItems.findIndex(q => q.id === ticketId) + 1;
+      const waitingCount = waitingItems.length;
+      
       return {
-        position: item.position,
-        waitingCount: mockQueue.filter(q => q.status === QueueStatus.WAITING).length,
+        position: actualPosition || item.position,
+        waitingCount: waitingCount,
         estimatedWaitMinutes: item.estimatedWaitMinutes || 15,
         status: item.status,
         restaurantName: mockRestaurant.name,
@@ -533,8 +585,13 @@ export const mockApi: MockApi = {
 
     if (endpoint.startsWith('/queue/public/') && !endpoint.includes('/ticket/')) {
       const slug = endpoint.split('/queue/public/')[1];
+      // Contar apenas quem está realmente aguardando (WAITING ou NOTIFIED)
+      const waitingCount = mockQueue.filter(q => 
+        q.status === QueueStatus.WAITING || q.status === QueueStatus.NOTIFIED
+      ).length;
+      
       return {
-        waitingCount: mockQueue.filter(q => q.status === QueueStatus.WAITING).length,
+        waitingCount: waitingCount,
         averageWaitMinutes: 20,
         restaurantName: mockRestaurant.name,
       } as T;
