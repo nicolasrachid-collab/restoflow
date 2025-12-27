@@ -23,10 +23,23 @@ export const Login: React.FC = () => {
             setServerStatus('online');
         } catch (e) {
             setServerStatus('offline');
+            // Tentar novamente após 3 segundos
+            setTimeout(() => {
+                checkServer();
+            }, 3000);
         }
     };
     checkServer();
-  }, []);
+    
+    // Verificar periodicamente a cada 5 segundos se estiver offline
+    const interval = setInterval(() => {
+        if (serverStatus === 'offline') {
+            checkServer();
+        }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [serverStatus]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
