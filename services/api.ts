@@ -234,10 +234,10 @@ export const api = {
     });
   },
 
-  put<T>(endpoint: string, body: any) {
+  put<T>(endpoint: string, body?: any) {
     return request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: body ? JSON.stringify(body) : undefined,
     });
   },
   

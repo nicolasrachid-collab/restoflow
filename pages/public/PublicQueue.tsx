@@ -168,7 +168,9 @@ export const PublicQueue: React.FC = () => {
           }
           
           previousStatusRef.current = normalizedStatus;
-          previousPositionRef.current = data.position;
+          if (typeof data.position === 'number') {
+            previousPositionRef.current = data.position;
+          }
           if (data.restaurantName) setRestaurantName(data.restaurantName);
           if (data.calledTimeoutMinutes) setCalledTimeoutMinutes(data.calledTimeoutMinutes);
         } catch (e: any) {
