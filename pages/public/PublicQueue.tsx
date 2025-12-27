@@ -176,7 +176,7 @@ export const PublicQueue: React.FC = () => {
           clearInterval(interval);
         };
       } else {
-        console.log('🔇 Modo desenvolvimento: usando apenas polling (WebSocket desabilitado)');
+        // WebSocket desabilitado - usando apenas polling silenciosamente
         
         // Polling automático (mais frequente quando WebSocket desabilitado)
         const pollInterval = 5000; // 5 segundos

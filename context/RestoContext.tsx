@@ -118,7 +118,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           wsService.disconnect();
         };
       } else {
-        console.log('🔇 Modo desenvolvimento: usando apenas polling (WebSocket desabilitado)');
+        // WebSocket desabilitado - usando apenas polling silenciosamente
       }
 
       // Polling automático (sempre ativo, mais frequente se WebSocket desabilitado)

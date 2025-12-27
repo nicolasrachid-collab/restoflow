@@ -126,7 +126,7 @@ class WebSocketService {
   // Emite evento apenas se estiver conectado
   safeEmit(event: string, data?: any): boolean {
     if (this.isWebSocketDisabled()) {
-      console.log(`🔇 WebSocket desabilitado - evento '${event}' ignorado`);
+      // Silencioso quando desabilitado - não loga para evitar spam
       return false;
     }
     if (!this.socket?.connected) {
