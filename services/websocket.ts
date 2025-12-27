@@ -113,20 +113,46 @@ class WebSocketService {
     }
 
     return new Promise((resolve) => {
+      let resolved = false;
+      const startTime = Date.now();
+
       const checkConnection = () => {
+        if (resolved) return;
+        
         if (this.isConnected()) {
+          resolved = true;
           resolve(true);
           return;
         }
+
+        // Verifica timeout
+        if (Date.now() - startTime >= timeout) {
+          resolved = true;
+          resolve(false);
+          return;
+        }
+
+        // Continua verificando
         setTimeout(checkConnection, 100);
       };
 
-      checkConnection();
+      // Listener para quando conectar
+      const onConnect = () => {
+        if (!resolved) {
+          resolved = true;
+          if (this.socket) {
+            this.socket.off('connect', onConnect);
+          }
+          resolve(true);
+        }
+      };
 
-      // Timeout
-      setTimeout(() => {
-        resolve(false);
-      }, timeout);
+      if (this.socket) {
+        this.socket.once('connect', onConnect);
+      }
+
+      // Inicia verificação
+      checkConnection();
     });
   }
 

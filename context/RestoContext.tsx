@@ -32,6 +32,12 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const socketRef = useRef<ReturnType<typeof wsService.getSocket> | null>(null);
+  const toastRef = useRef(toast);
+  
+  // Atualiza ref quando toast muda
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   const refreshData = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -50,7 +56,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error: any) {
       console.error("Erro ao carregar dados", error);
       const errorMessage = error?.message || 'Erro ao carregar dados. Tente novamente.';
-      toast.error(errorMessage);
+      toastRef.current.error(errorMessage);
     } finally {
       setIsLoadingData(false);
     }
@@ -72,7 +78,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           wsService.safeEmit('join-restaurant', { restaurantId: user.restaurantId });
         } else {
           console.warn('WebSocket não conectado a tempo, usando polling');
-          toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
+          toastRef.current.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
         }
       };
 
@@ -86,7 +92,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Listen for errors
       socket.on('error', (error: any) => {
         console.error('Erro no WebSocket:', error);
-        toast.error(error?.message || 'Erro na conexão em tempo real');
+        toastRef.current.error(error?.message || 'Erro na conexão em tempo real');
       });
 
       // Listen for connection status
@@ -94,7 +100,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.error('Erro de conexão WebSocket:', error);
         // Não mostra toast para tentativas de reconexão intermediárias
         if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
-          toast.error(error.message);
+          toastRef.current.error(error.message);
         }
       });
 
@@ -112,7 +118,8 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       wsService.disconnect();
       socketRef.current = null;
     }
-  }, [isAuthenticated, user?.restaurantId, refreshData, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.restaurantId]);
 
   // --- ACTIONS ---
 

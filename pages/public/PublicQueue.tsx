@@ -172,7 +172,8 @@ export const PublicQueue: React.FC = () => {
         clearInterval(interval);
       };
     }
-  }, [view, slug, ticketId, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, slug, ticketId]);
 
   const handleNameChange = (value: string) => {
     setName(value);
