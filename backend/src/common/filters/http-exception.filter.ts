@@ -12,6 +12,39 @@ import { Request, Response } from 'express';
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
+  private isDatabaseError(exception: unknown): boolean {
+    if (!(exception instanceof Error)) return false;
+    
+    const errorMessage = exception.message.toLowerCase();
+    const databaseKeywords = [
+      'database',
+      'connection',
+      'query',
+      'sql',
+      'postgres',
+      'timeout',
+      'connection pool',
+      'econnrefused',
+      'etimedout',
+    ];
+
+    return databaseKeywords.some(keyword => errorMessage.includes(keyword));
+  }
+
+  private isPrismaError(exception: unknown): boolean {
+    if (!(exception instanceof Error)) return false;
+    
+    // Prisma errors têm códigos que começam com P
+    const prismaCode = (exception as any)?.code;
+    if (prismaCode && typeof prismaCode === 'string' && prismaCode.startsWith('P')) {
+      return true;
+    }
+
+    // Verificar se é instância de PrismaClientKnownRequestError ou similar
+    const errorName = exception.constructor.name;
+    return errorName.includes('Prisma') || errorName.includes('PrismaClient');
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -39,6 +72,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ...(typeof message === 'object' && message !== null ? message : {}),
     };
 
+    // Detectar tipo de erro para melhor tratamento
+    const isDatabaseError = this.isDatabaseError(exception);
+    const isPrismaError = this.isPrismaError(exception);
+
     // Log error for debugging
     if (status >= 500) {
       const errorDetails = {
@@ -47,12 +84,40 @@ export class HttpExceptionFilter implements ExceptionFilter {
         type: exception?.constructor?.name,
         url: request.url,
         method: request.method,
+        isDatabaseError,
+        isPrismaError,
       };
-      console.error('[HTTP_EXCEPTION_FILTER] 500 Error:', JSON.stringify(errorDetails, null, 2));
-      this.logger.error(
-        `${request.method} ${request.url} - ${status}`,
-        exception instanceof Error ? exception.stack : JSON.stringify(exception),
-      );
+
+      // Log detalhado para erros de banco de dados
+      if (isDatabaseError || isPrismaError) {
+        this.logger.error(
+          `[DATABASE ERROR] ${request.method} ${request.url} - ${status}`,
+          {
+            error: exception instanceof Error ? exception.message : String(exception),
+            code: (exception as any)?.code,
+            meta: (exception as any)?.meta,
+            stack: exception instanceof Error ? exception.stack?.substring(0, 500) : undefined,
+          },
+        );
+      } else {
+        console.error('[HTTP_EXCEPTION_FILTER] 500 Error:', JSON.stringify(errorDetails, null, 2));
+        this.logger.error(
+          `${request.method} ${request.url} - ${status}`,
+          exception instanceof Error ? exception.stack : JSON.stringify(exception),
+        );
+      }
+
+      // Melhorar mensagem de erro para desenvolvimento
+      if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+        if (isDatabaseError || isPrismaError) {
+          errorResponse.message = `Erro de banco de dados: ${exception instanceof Error ? exception.message : 'Erro desconhecido'}`;
+          (errorResponse as any).debug = {
+            type: 'database',
+            code: (exception as any)?.code,
+            meta: (exception as any)?.meta,
+          };
+        }
+      }
     } else {
       this.logger.warn(
         `${request.method} ${request.url} - ${status} - ${errorResponse.message}`,

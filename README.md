@@ -29,30 +29,61 @@ Este repositório contém o **Blueprint Funcional** do RestoFlow. É uma aplica�
 
 ## 🚀 Como Rodar
 
+### Modo Standalone (Padrão - Sem Backend)
+
+O projeto funciona **sem necessidade de backend, banco de dados ou Docker**. Por padrão, usa dados mockados com persistência local (localStorage).
+
 1. **Pré-requisitos:** Node.js 18+.
 2. **Instalação:**
    ```bash
    npm install
    ```
-3. **Configuração:**
-   O projeto espera que a chave da API do Google Gemini seja injetada via variável de ambiente `API_KEY` no processo de build ou no ambiente de execução.
-4. **Execução:**
+3. **Execução:**
+   ```bash
+   npm run dev
+   ```
+4. **Acesse:** `http://localhost:5173`
+
+**Pronto!** O sistema funciona imediatamente sem configuração adicional.
+
+### Modo com Servidor (Opcional)
+
+Se quiser usar o backend real, configure:
+
+1. **Crie arquivo `.env` na raiz:**
+   ```env
+   VITE_USE_SERVER=true
+   ```
+
+2. **Inicie o backend:**
+   ```bash
+   cd backend
+   npm install
+   npm run start:dev
+   ```
+
+3. **Inicie o frontend:**
    ```bash
    npm run dev
    ```
 
-## 🔐 Acesso ao Demo
+## 🔐 Acesso ao Sistema
 
-O sistema possui um fluxo de autenticação simulado.
+### Login
+- **Email:** Qualquer email (ex: `admin@demo.com`)
+- **Senha:** Qualquer senha (ex: `123456`)
 
-1. Acesse a rota raiz `/`.
-2. Login automático ou use qualquer email (ex: `admin@restoflow.com`).
-3. Navegue pelo painel administrativo.
-4. Para testar a visão do cliente, acesse as rotas públicas:
-   - Menu: `/#/r/demo-grill/menu`
-   - Fila: `/#/r/demo-grill/fila`
-   - Reservas: `/#/r/demo-grill/reservas`
+### Funcionalidades
+- ✅ **Dados persistem** entre sessões (localStorage)
+- ✅ **Todas as funcionalidades** funcionam sem servidor
+- ✅ **Funciona offline** completamente
+
+### Rotas Públicas
+Para testar a visão do cliente, acesse:
+- Menu: `/r/demo/menu`
+- Fila: `/r/demo/fila`
+- Reservas: `/r/demo/reservas`
 
 ---
 
-**Nota:** Este é um MVP Blueprint. Dados criados não são persistidos em banco de dados real. Ao recarregar a página, o estado volta ao inicial.
+**Nota:** Em modo standalone (padrão), os dados são salvos no localStorage do navegador e persistem entre sessões. Não há necessidade de backend ou banco de dados.

@@ -65,9 +65,9 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // WebSocket setup for real-time updates
   useEffect(() => {
     if (isAuthenticated && user?.restaurantId) {
-      // Se WebSocket está desabilitado, usa apenas polling
       const isWebSocketDisabled = import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
       
+      // Configurar WebSocket (se habilitado) - camada adicional de atualização em tempo real
       let unsubscribeError: (() => void) | null = null;
       
       if (!isWebSocketDisabled) {
@@ -83,7 +83,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Join restaurant room
             wsService.safeEmit('join-restaurant', { restaurantId: user.restaurantId });
           } else {
-            console.warn('WebSocket não conectado a tempo, usando polling');
+            console.warn('WebSocket não conectado a tempo, usando apenas polling');
             toastRef.current.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
           }
         };
@@ -111,7 +111,8 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
 
-      // Polling automático (sempre ativo, mais frequente se WebSocket desabilitado)
+      // Polling automático - SEMPRE ativo como fallback
+      // Mais frequente quando WebSocket está desabilitado ou indisponível
       const pollInterval = isWebSocketDisabled ? 5000 : 30000; // 5s se desabilitado, 30s se habilitado
       
       const pollData = async () => {
@@ -129,6 +130,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const interval = setInterval(pollData, pollInterval);
 
       return () => {
+        // Cleanup WebSocket listeners
         if (!isWebSocketDisabled) {
           const socket = socketRef.current;
           if (socket) {
@@ -140,6 +142,7 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
           wsService.disconnect();
         }
+        // Cleanup polling
         clearInterval(interval);
       };
     } else {

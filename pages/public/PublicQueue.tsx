@@ -102,9 +102,13 @@ export const PublicQueue: React.FC = () => {
       // Initial fetch
       fetchPosition();
 
+      // Configurar WebSocket (se habilitado) - camada adicional de atualização em tempo real
+      let socket: ReturnType<typeof wsService.connect> | null = null;
+      let unsubscribeError: (() => void) | null = null;
+
       if (!isWebSocketDisabled) {
         // Connect to WebSocket for real-time updates
-        const socket = wsService.connect();
+        socket = wsService.connect();
         
         // Aguarda conexão antes de emitir eventos
         const setupSocket = async () => {
@@ -155,37 +159,34 @@ export const PublicQueue: React.FC = () => {
         });
 
         // Listen for connection errors
-        const unsubscribeError = wsService.onError((error) => {
+        unsubscribeError = wsService.onError((error) => {
           console.error('Erro de conexão WebSocket:', error);
           // Não mostra toast para tentativas de reconexão intermediárias
           if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
             toast.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
           }
         });
+      }
 
-        // Polling automático (mais frequente se WebSocket desabilitado)
-        const pollInterval = isWebSocketDisabled ? 5000 : 30000;
-        const interval = setInterval(fetchPosition, pollInterval);
+      // Polling automático - SEMPRE ativo como fallback
+      // Mais frequente quando WebSocket está desabilitado ou indisponível
+      const pollInterval = isWebSocketDisabled ? 5000 : 30000; // 5s se desabilitado, 30s se habilitado
+      const interval = setInterval(fetchPosition, pollInterval);
 
-        return () => {
+      return () => {
+        // Cleanup WebSocket listeners
+        if (socket) {
           socket.off('position-updated');
           socket.off('status-changed');
           socket.off('queue-status-updated');
           socket.off('error');
+        }
+        if (unsubscribeError) {
           unsubscribeError();
-          clearInterval(interval);
-        };
-      } else {
-        // WebSocket desabilitado - usando apenas polling silenciosamente
-        
-        // Polling automático (mais frequente quando WebSocket desabilitado)
-        const pollInterval = 5000; // 5 segundos
-        const interval = setInterval(fetchPosition, pollInterval);
-
-        return () => {
-          clearInterval(interval);
-        };
-      }
+        }
+        // Cleanup polling
+        clearInterval(interval);
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, slug, ticketId]);

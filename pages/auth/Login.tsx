@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { Utensils, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Utensils, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../services/api';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -12,34 +11,6 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  
-  // Server Status State
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-
-  useEffect(() => {
-    const checkServer = async () => {
-        try {
-            await api.get('/health');
-            setServerStatus('online');
-        } catch (e) {
-            setServerStatus('offline');
-            // Tentar novamente após 3 segundos
-            setTimeout(() => {
-                checkServer();
-            }, 3000);
-        }
-    };
-    checkServer();
-    
-    // Verificar periodicamente a cada 5 segundos se estiver offline
-    const interval = setInterval(() => {
-        if (serverStatus === 'offline') {
-            checkServer();
-        }
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [serverStatus]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,17 +28,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4 relative">
-      {/* Server Status Indicator */}
-      <div className={`absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-        serverStatus === 'online' ? 'bg-green-100 text-green-700' : 
-        serverStatus === 'offline' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
-      }`}>
-        {serverStatus === 'online' && <><Wifi size={14} /> Sistema Online</>}
-        {serverStatus === 'offline' && <><WifiOff size={14} /> Servidor Offline</>}
-        {serverStatus === 'checking' && <span className="animate-pulse">Conectando...</span>}
-      </div>
-
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-orange-100 text-orange-600 mb-2">
@@ -82,12 +43,6 @@ export const Login: React.FC = () => {
             <AlertCircle size={16} />
             {error}
           </div>
-        )}
-
-        {serverStatus === 'offline' && (
-             <div className="p-3 bg-orange-50 text-orange-800 text-sm rounded-lg border border-orange-200">
-                <strong>Atenção:</strong> O backend não foi detectado. Certifique-se de que o servidor (Porta 3001) e o Docker (Porta 5432) estão rodando.
-             </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -117,7 +72,7 @@ export const Login: React.FC = () => {
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg" isLoading={loading} disabled={serverStatus === 'offline'}>
+          <Button type="submit" className="w-full" size="lg" isLoading={loading}>
             Entrar
           </Button>
         </form>

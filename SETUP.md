@@ -43,6 +43,9 @@ Crie/edite o arquivo `.env` na raiz do projeto:
 # Desabilitar WebSocket em desenvolvimento local (recomendado)
 VITE_DISABLE_WEBSOCKET=true
 
+# Modo OFFLINE - Rodar sem backend (usa dados mockados)
+# VITE_USE_MOCK=true
+
 # URL do WebSocket (opcional, padrão: http://localhost:3001)
 # VITE_WS_URL=http://localhost:3001
 
@@ -82,21 +85,57 @@ cd ..
 
 ## 🏃 Passo 5: Executar o Projeto
 
+### Opção A: Com Backend (Modo Normal)
+
 Você precisa de **2 terminais** abertos:
 
-### Terminal 1: Backend
+#### Terminal 1: Backend
 ```bash
 cd backend
 npm run start:dev
 ```
 O backend estará rodando em: `http://localhost:3001`
 
-### Terminal 2: Frontend
+#### Terminal 2: Frontend
 ```bash
 # Na raiz do projeto
 npm run dev
 ```
 O frontend estará rodando em: `http://localhost:5173`
+
+### Opção B: Sem Backend (Modo Offline/Mock) 🆕
+
+**Perfeito para desenvolvimento rápido, demonstrações ou quando o backend não está disponível!**
+
+1. **Configure o modo mock** no arquivo `.env` na raiz:
+```env
+VITE_USE_MOCK=true
+VITE_DISABLE_WEBSOCKET=true
+```
+
+2. **Execute apenas o frontend:**
+```bash
+# Na raiz do projeto
+npm run dev
+```
+
+3. **Acesse:** `http://localhost:5173`
+
+**O que funciona no modo mock:**
+- ✅ Login/Registro (qualquer email/senha funciona)
+- ✅ Dashboard administrativo
+- ✅ Gerenciamento de fila (com dados de exemplo)
+- ✅ Gerenciamento de menu (com itens de exemplo)
+- ✅ Gerenciamento de reservas (com dados de exemplo)
+- ✅ Páginas públicas (fila, menu, reservas)
+- ✅ Todas as funcionalidades de UI
+
+**Dados mockados incluídos:**
+- 3 itens na fila
+- 3 itens no menu
+- 2 reservas
+- Restaurante "Restaurante Demo"
+- Usuário admin: qualquer email/senha
 
 ## 🔐 Credenciais de Teste
 
@@ -137,5 +176,26 @@ npx prisma db push
 - O WebSocket está **desabilitado por padrão** para desenvolvimento local
 - Para habilitar WebSocket, mude `VITE_DISABLE_WEBSOCKET=false` no `.env` e reinicie
 - O sistema usa **polling automático** (a cada 5s) quando WebSocket está desabilitado
+- **Modo Mock:** Use `VITE_USE_MOCK=true` para rodar sem backend - perfeito para desenvolvimento rápido!
 - Todas as mudanças estão na branch `2025-12-26-h7fy`
+
+## 🎯 Modo Offline (Mock) - Detalhes
+
+O modo mock permite rodar o sistema completo sem precisar do backend, banco de dados ou Docker. Ideal para:
+
+- 🚀 **Desenvolvimento rápido** - Teste UI sem configurar backend
+- 📱 **Demonstrações** - Mostre o sistema funcionando rapidamente
+- 🐛 **Debug** - Isole problemas do frontend
+- 💻 **Desenvolvimento offline** - Trabalhe sem internet
+
+**Como ativar:**
+1. Adicione `VITE_USE_MOCK=true` no `.env`
+2. Execute apenas `npm run dev`
+3. Use qualquer email/senha para fazer login
+
+**Limitações do modo mock:**
+- Dados são armazenados apenas em memória (perdidos ao recarregar)
+- Não persiste mudanças entre sessões
+- Não conecta com banco de dados real
+- WebSocket sempre desabilitado
 
