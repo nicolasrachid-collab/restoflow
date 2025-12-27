@@ -13,26 +13,33 @@ class WebSocketService {
   private statusCallbacks: Set<StatusCallback> = new Set();
 
   private isWebSocketDisabled(): boolean {
-    return import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
+    const envValue = import.meta.env.VITE_DISABLE_WEBSOCKET;
+    // Verifica se está explicitamente definido como 'true' (case-insensitive)
+    return envValue === 'true' || envValue === 'True' || envValue === 'TRUE';
   }
 
   private createMockSocket(): Socket {
     // Retorna um objeto mock que simula um socket desconectado
-    return {
+    // IMPORTANTE: Não inicializa socket.io de forma alguma
+    const mockSocket = {
       connected: false,
+      id: null,
       emit: () => {},
-      on: () => this as any,
-      off: () => this as any,
-      once: () => this as any,
+      on: () => mockSocket as any,
+      off: () => mockSocket as any,
+      once: () => mockSocket as any,
       disconnect: () => {},
-      removeAllListeners: () => this as any,
+      removeAllListeners: () => mockSocket as any,
+      close: () => {},
     } as any;
+    
+    return mockSocket;
   }
 
   connect(namespace: string = '/queue'): Socket {
-    // Se WebSocket está desabilitado, retorna um mock socket
+    // Se WebSocket está desabilitado, retorna um mock socket SEM inicializar socket.io
     if (this.isWebSocketDisabled()) {
-      console.log('🔇 WebSocket desabilitado em modo desenvolvimento');
+      // Silencioso - não loga nada para evitar spam
       this.setStatus('disconnected');
       return this.createMockSocket();
     }
