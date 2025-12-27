@@ -18,7 +18,7 @@ export class ReservationsService {
 
   // Admin: List all reservations for the tenant
   async findAll(restaurantId: string) {
-    return (this.prisma as any).reservation.findMany({
+    return await (this.prisma as any).reservation.findMany({
       where: { restaurantId },
       orderBy: { date: 'asc' }
     });
@@ -39,11 +39,32 @@ export class ReservationsService {
     // Validar data não no passado
     const reservationDate = new Date(data.date);
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    reservationDate.setHours(0, 0, 0, 0);
 
     if (reservationDate < now) {
-      throw new BadRequestException('Não é possível fazer reserva para datas passadas');
+      throw new BadRequestException('Não é possível fazer reserva para datas/horários passados');
+    }
+
+    // Validar antecedência mínima
+    const minAdvanceHours = restaurant.minReservationAdvanceHours || 2;
+    const minAdvanceDate = new Date(now);
+    minAdvanceDate.setHours(minAdvanceDate.getHours() + minAdvanceHours);
+    
+    if (reservationDate < minAdvanceDate) {
+      throw new BadRequestException(`A reserva deve ser feita com pelo menos ${minAdvanceHours} horas de antecedência`);
+    }
+
+    // Validar antecedência máxima (comparar apenas datas, sem hora)
+    const maxAdvanceDays = restaurant.maxReservationAdvanceDays || 30;
+    const reservationDateOnly = new Date(reservationDate);
+    reservationDateOnly.setHours(0, 0, 0, 0);
+    const nowDateOnly = new Date(now);
+    nowDateOnly.setHours(0, 0, 0, 0);
+    const maxAdvanceDate = new Date(nowDateOnly);
+    maxAdvanceDate.setDate(maxAdvanceDate.getDate() + maxAdvanceDays);
+    maxAdvanceDate.setHours(23, 59, 59, 999);
+    
+    if (reservationDateOnly > maxAdvanceDate) {
+      throw new BadRequestException(`A reserva não pode ser feita com mais de ${maxAdvanceDays} dias de antecedência`);
     }
 
     // Validar limite de pessoas
@@ -58,6 +79,42 @@ export class ReservationsService {
     // Validar email obrigatório para reservas públicas
     if (!userId && !data.email) {
       throw new BadRequestException('Email é obrigatório para reservas');
+    }
+
+    // Validar formato de telefone
+    const phoneRegex = /^[\d\s\(\)\-\+]+$/;
+    if (!phoneRegex.test(data.phone)) {
+      throw new BadRequestException('Formato de telefone inválido');
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (data.email && !emailRegex.test(data.email)) {
+      throw new BadRequestException('Formato de email inválido');
+    }
+
+    // Validar duplicação - mesmo telefone no mesmo dia
+    const startOfDay = new Date(reservationDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(reservationDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingReservation = await (this.prisma as any).reservation.findFirst({
+      where: {
+        restaurantId,
+        phone: data.phone,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
+      },
+    });
+
+    if (existingReservation) {
+      throw new BadRequestException('Já existe uma reserva pendente ou confirmada para este telefone neste dia');
     }
 
     // Se customerId fornecido, buscar dados do Customer
@@ -133,13 +190,42 @@ export class ReservationsService {
       throw new ForbiddenException('Restaurante não funciona neste dia da semana');
     }
 
+    // Validar horário dentro do funcionamento
+    const reservationHour = reservationDate.getHours();
+    const reservationMinute = reservationDate.getMinutes();
+    const reservationTime = `${String(reservationHour).padStart(2, '0')}:${String(reservationMinute).padStart(2, '0')}`;
+    
+    if (reservationTime < dayHours.openTime || reservationTime >= dayHours.closeTime) {
+      throw new BadRequestException(`O horário da reserva deve estar entre ${dayHours.openTime} e ${dayHours.closeTime}`);
+    }
+
     // Validar data não no passado
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    reservationDate.setHours(0, 0, 0, 0);
+    const reservationDateOnly = new Date(reservationDate);
+    reservationDateOnly.setHours(0, 0, 0, 0);
 
-    if (reservationDate < now) {
+    if (reservationDateOnly < now) {
       throw new BadRequestException('Não é possível fazer reserva para datas passadas');
+    }
+
+    // Validar antecedência mínima
+    const minAdvanceHours = restaurant.minReservationAdvanceHours || 2;
+    const minAdvanceDate = new Date(now);
+    minAdvanceDate.setHours(minAdvanceDate.getHours() + minAdvanceHours);
+    
+    if (reservationDate < minAdvanceDate) {
+      throw new BadRequestException(`A reserva deve ser feita com pelo menos ${minAdvanceHours} horas de antecedência`);
+    }
+
+    // Validar antecedência máxima (comparar apenas datas, sem hora)
+    const maxAdvanceDays = restaurant.maxReservationAdvanceDays || 30;
+    const maxAdvanceDate = new Date(now);
+    maxAdvanceDate.setDate(maxAdvanceDate.getDate() + maxAdvanceDays);
+    maxAdvanceDate.setHours(23, 59, 59, 999); // Fim do dia
+    
+    if (reservationDateOnly > maxAdvanceDate) {
+      throw new BadRequestException(`A reserva não pode ser feita com mais de ${maxAdvanceDays} dias de antecedência`);
     }
 
     // Validar limite de pessoas
@@ -147,9 +233,49 @@ export class ReservationsService {
       throw new BadRequestException(`Número de pessoas excede o limite de ${restaurant.maxPartySize}`);
     }
 
+    if (data.partySize < 1) {
+      throw new BadRequestException('Número de pessoas deve ser pelo menos 1');
+    }
+
     // Validar email obrigatório
     if (!data.email) {
       throw new BadRequestException('Email é obrigatório para reservas');
+    }
+
+    // Validar formato de telefone
+    const phoneRegex = /^[\d\s\(\)\-\+]+$/;
+    if (!phoneRegex.test(data.phone)) {
+      throw new BadRequestException('Formato de telefone inválido');
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      throw new BadRequestException('Formato de email inválido');
+    }
+
+    // Validar duplicação - mesmo telefone no mesmo dia
+    const startOfDay = new Date(reservationDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(reservationDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingReservation = await (this.prisma as any).reservation.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        phone: data.phone,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
+      },
+    });
+
+    if (existingReservation) {
+      throw new BadRequestException('Já existe uma reserva pendente ou confirmada para este telefone neste dia');
     }
 
     // Se customerId fornecido, buscar dados do Customer
@@ -299,5 +425,96 @@ export class ReservationsService {
     );
 
     return newReservation;
+  }
+
+  // Public: Get available time slots for a date
+  async getAvailableSlots(slugOrCode: string, dateString: string) {
+    // Verificar se é um código de link personalizado
+    let restaurant;
+    const publicLink = await this.publicLinksService.getLinkByCode(slugOrCode);
+    
+    if (publicLink) {
+      restaurant = publicLink.restaurant;
+    } else {
+      restaurant = await (this.prisma as any).restaurant.findUnique({
+        where: { slug: slugOrCode }
+      });
+    }
+    
+    if (!restaurant) throw new NotFoundException('Restaurante não encontrado');
+
+    if (!restaurant.isActive) {
+      throw new ForbiddenException('Restaurante está desativado');
+    }
+
+    // Validar data
+    const selectedDate = new Date(dateString);
+    const dayOfWeek = selectedDate.getDay();
+    const restaurantConfig = await this.restaurantsService.getRestaurantConfig(restaurant.id);
+    const dayHours = restaurantConfig.operatingHours?.find((oh: any) => oh.dayOfWeek === dayOfWeek);
+
+    if (!dayHours || !dayHours.isOpen) {
+      return { availableSlots: [] };
+    }
+
+    // Buscar reservas confirmadas para o dia
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const confirmedReservations = await (this.prisma as any).reservation.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: {
+          in: [ReservationStatus.CONFIRMED, ReservationStatus.PENDING],
+        },
+      },
+      select: {
+        date: true,
+      },
+    });
+
+    // Gerar slots de 30 em 30 minutos
+    const slots: string[] = [];
+    const [openHour, openMinute] = dayHours.openTime.split(':').map(Number);
+    const [closeHour, closeMinute] = dayHours.closeTime.split(':').map(Number);
+
+    const openTime = new Date(selectedDate);
+    openTime.setHours(openHour, openMinute, 0, 0);
+    
+    const closeTime = new Date(selectedDate);
+    closeTime.setHours(closeHour, closeMinute, 0, 0);
+
+    // Criar slots de 30 em 30 minutos
+    const currentTime = new Date(openTime);
+    while (currentTime < closeTime) {
+      const timeString = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`;
+      
+      // Verificar se há reserva neste horário (com tolerância de 30 minutos)
+      const hasReservation = confirmedReservations.some((res: any) => {
+        const resTime = new Date(res.date);
+        const diffMinutes = Math.abs((resTime.getTime() - currentTime.getTime()) / (1000 * 60));
+        return diffMinutes < 30; // Considerar ocupado se houver reserva em 30 minutos
+      });
+
+      // Verificar antecedência mínima
+      const now = new Date();
+      const minAdvanceHours = restaurant.minReservationAdvanceHours || 2;
+      const minAdvanceDate = new Date(now);
+      minAdvanceDate.setHours(minAdvanceDate.getHours() + minAdvanceHours);
+
+      if (!hasReservation && currentTime >= minAdvanceDate) {
+        slots.push(timeString);
+      }
+
+      currentTime.setMinutes(currentTime.getMinutes() + 30);
+    }
+
+    return { availableSlots: slots };
   }
 }

@@ -80,6 +80,8 @@ export class RestaurantsService {
         maxPartySize: true,
         averageTableTimeMinutes: true,
         calledTimeoutMinutes: true,
+        minReservationAdvanceHours: true,
+        maxReservationAdvanceDays: true,
         operatingHours: {
           orderBy: { dayOfWeek: 'asc' },
         },

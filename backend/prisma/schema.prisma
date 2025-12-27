@@ -58,6 +58,8 @@ model Restaurant {
   maxPartySize            Int             @default(20) @map("max_party_size")
   averageTableTimeMinutes Int             @default(45) @map("average_table_time_minutes")
   calledTimeoutMinutes    Int             @default(10) @map("called_timeout_minutes")
+  minReservationAdvanceHours Int         @default(2) @map("min_reservation_advance_hours")
+  maxReservationAdvanceDays  Int          @default(30) @map("max_reservation_advance_days")
   users                   User[]
   menuItems               MenuItem[]
   queueItems              QueueItem[]

@@ -1,10 +1,16 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('reservations')
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
+
+  // Public Route: Get Available Slots
+  @Get('public/:slug/available-slots')
+  async getAvailableSlots(@Param('slug') slug: string, @Query('date') date: string) {
+    return this.reservationsService.getAvailableSlots(slug, date);
+  }
 
   // Public Route: Create Reservation
   @Post('public/:slug')

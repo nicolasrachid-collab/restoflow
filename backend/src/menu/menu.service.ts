@@ -38,7 +38,7 @@ export class MenuService {
   }
 
   async findAll(restaurantId: string) {
-    return (this.prisma as any).menuItem.findMany({
+    return await (this.prisma as any).menuItem.findMany({
       where: { restaurantId },
       include: {
         categoryRef: true,

@@ -1,27 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { Users, Clock, CheckCircle, AlertTriangle, Mail } from 'lucide-react';
+import { Users, Clock, CheckCircle, AlertTriangle, Mail, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { wsService } from '../../services/websocket';
-import { customerService } from '../../services/customerService';
-import { Customer } from '../../types';
+import { useToast } from '../../context/ToastContext';
+import { validateEmail, validatePhone, validateRequired } from '../../utils/validation';
+import { formatPhone } from '../../utils/format';
+import { Skeleton } from '../../components/ui/Skeleton';
 
-type ViewState = 'JOIN' | 'EMAIL' | 'STATUS';
+type ViewState = 'JOIN' | 'STATUS';
 
 export const PublicQueue: React.FC = () => {
   const { slug } = useParams();
+  const toast = useToast();
   const [view, setView] = useState<ViewState>('JOIN');
   const [loading, setLoading] = useState(false);
+  const [loadingQueueInfo, setLoadingQueueInfo] = useState(true);
   
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [partySize, setPartySize] = useState('2');
   const [email, setEmail] = useState('');
-  
-  // Customer State
-  const [customer, setCustomer] = useState<Customer | null>(null);
+
+  // Validation errors
+  const [errors, setErrors] = useState<{
+    name?: string;
+    phone?: string;
+    email?: string;
+    partySize?: string;
+  }>({});
   
   // Queue Info State
   const [queueInfo, setQueueInfo] = useState<{
@@ -42,6 +51,7 @@ export const PublicQueue: React.FC = () => {
   // Load queue info when on JOIN view
   useEffect(() => {
     if (slug && view === 'JOIN') {
+      setLoadingQueueInfo(true);
       const loadQueueInfo = async () => {
         try {
           const data = await api.get<{
@@ -52,11 +62,14 @@ export const PublicQueue: React.FC = () => {
           setQueueInfo(data);
         } catch (error) {
           console.error('Erro ao carregar informações da fila', error);
+          toast.error('Erro ao carregar informações da fila');
+        } finally {
+          setLoadingQueueInfo(false);
         }
       };
       loadQueueInfo();
     }
-  }, [slug, view]);
+  }, [slug, view, toast]);
 
   // WebSocket + Fallback Polling for position updates
   useEffect(() => {
@@ -131,89 +144,90 @@ export const PublicQueue: React.FC = () => {
     }
   }, [view, slug, ticketId]);
 
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (value && !validateRequired(value)) {
+      setErrors({ ...errors, name: 'Nome é obrigatório' });
+    } else {
+      setErrors({ ...errors, name: undefined });
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhone(value);
+    setPhone(formatted);
+    if (value && !validatePhone(value)) {
+      setErrors({ ...errors, phone: 'Telefone inválido' });
+    } else {
+      setErrors({ ...errors, phone: undefined });
+    }
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (value && !validateEmail(value)) {
+      setErrors({ ...errors, email: 'Email inválido' });
+    } else {
+      setErrors({ ...errors, email: undefined });
+    }
+  };
+
   const handleBasicInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!slug) return;
     
+    // Reset errors
+    const newErrors: typeof errors = {};
+
+    // Validar campos
+    if (!validateRequired(name)) {
+      newErrors.name = 'Nome é obrigatório';
+    }
+
+    if (!validateRequired(phone)) {
+      newErrors.phone = 'Telefone é obrigatório';
+    } else if (!validatePhone(phone)) {
+      newErrors.phone = 'Telefone inválido';
+    }
+
+    if (!validateRequired(email)) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Email inválido';
+    }
+
+    const partySizeNum = parseInt(partySize);
+    if (partySizeNum < 1) {
+      newErrors.partySize = 'Número de pessoas deve ser pelo menos 1';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Por favor, corrija os erros no formulário');
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      // Validar limite de pessoas (será validado no backend também)
-      const partySizeNum = parseInt(partySize);
-      if (partySizeNum < 1) {
-        alert('Número de pessoas deve ser pelo menos 1');
-        setLoading(false);
-        return;
-      }
-
-      // Buscar ou criar cliente
-      const customerData = await customerService.findOrCreate(phone, name);
-      setCustomer(customerData);
-
-      // Se cliente não tem email, mostrar etapa de email
-      if (!customerData.email) {
-        setView('EMAIL');
-      } else {
-        // Se já tem email, entrar direto na fila
-        await joinQueueWithCustomer(customerData.id);
-      }
-    } catch (error: any) {
-      console.error('Erro ao buscar/criar cliente', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Não foi possível processar seus dados. Tente novamente.';
-      alert(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customer || !slug) return;
-
-    setLoading(true);
-
-    try {
-      // Atualizar email do cliente se fornecido
-      if (email.trim()) {
-        const updatedCustomer = await customerService.update(customer.id, { email: email.trim() });
-        setCustomer(updatedCustomer);
-      }
-
-      // Entrar na fila
-      await joinQueueWithCustomer(customer.id);
-    } catch (error) {
-      console.error('Erro ao atualizar cliente', error);
-      // Mesmo com erro, tentar entrar na fila
-      await joinQueueWithCustomer(customer.id);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const joinQueueWithCustomer = async (customerId: string) => {
-    if (!slug) return;
-
-    try {
+      // Entrar diretamente na fila (sem etapa intermediária de customer)
       const response = await api.post<{ id: string }>(`/queue/join/${slug}`, {
         customerName: name,
         phone: phone,
         email: email.trim(),
         partySize: parseInt(partySize),
-        customerId: customerId,
       });
 
       setTicketId(response.id);
       setView('STATUS');
+      toast.success('Você entrou na fila com sucesso!');
     } catch (error: any) {
       console.error('Erro ao entrar na fila', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Não foi possível entrar na fila. Tente novamente.';
-      alert(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSkipEmail = async () => {
-    if (!customer || !slug) return;
-    await joinQueueWithCustomer(customer.id);
   };
 
 
@@ -312,7 +326,20 @@ export const PublicQueue: React.FC = () => {
       </div>
 
       {/* Informações da Fila */}
-      {queueInfo && (
+      {loadingQueueInfo ? (
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6 mb-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center">
+              <Skeleton height={40} width="100%" className="mb-2" />
+              <Skeleton height={16} width="60%" className="mx-auto" />
+            </div>
+            <div className="text-center">
+              <Skeleton height={40} width="100%" className="mb-2" />
+              <Skeleton height={16} width="60%" className="mx-auto" />
+            </div>
+          </div>
+        </div>
+      ) : queueInfo && (
         <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6 mb-6">
           <div className="grid grid-cols-2 gap-6">
             <div className="text-center">
@@ -334,10 +361,18 @@ export const PublicQueue: React.FC = () => {
             required
             type="text" 
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            onChange={(e) => handleNameChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
             placeholder="Ex: Maria Silva"
           />
+          {errors.name && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} />
+              {errors.name}
+            </p>
+          )}
         </div>
 
         <div>
@@ -346,10 +381,18 @@ export const PublicQueue: React.FC = () => {
             required
             type="tel" 
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            onChange={(e) => handlePhoneChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+              errors.phone ? 'border-red-500' : 'border-gray-300'
+            }`}
             placeholder="(11) 99999-9999"
           />
+          {errors.phone && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} />
+              {errors.phone}
+            </p>
+          )}
         </div>
 
         <div>
@@ -360,10 +403,18 @@ export const PublicQueue: React.FC = () => {
             required
             type="email" 
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            onChange={(e) => handleEmailChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
             placeholder="seu@email.com"
           />
+          {errors.email && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} />
+              {errors.email}
+            </p>
+          )}
           <p className="text-xs text-gray-500 mt-1">
             Você receberá notificações por email e WhatsApp quando sua vez se aproximar.
           </p>
