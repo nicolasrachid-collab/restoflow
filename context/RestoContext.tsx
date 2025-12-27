@@ -32,6 +32,12 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const socketRef = useRef<ReturnType<typeof wsService.getSocket> | null>(null);
+  const toastRef = useRef(toast);
+  
+  // Atualiza ref quando toast muda
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   const refreshData = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -47,8 +53,10 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setQueue(queueData);
       setMenu(menuData);
       setReservations(reservationData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dados", error);
+      const errorMessage = error?.message || 'Erro ao carregar dados. Tente novamente.';
+      toastRef.current.error(errorMessage);
     } finally {
       setIsLoadingData(false);
     }
@@ -57,31 +65,97 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // WebSocket setup for real-time updates
   useEffect(() => {
     if (isAuthenticated && user?.restaurantId) {
-      // Connect to WebSocket
-      const socket = wsService.connect();
-      socketRef.current = socket;
+      // Se WebSocket está desabilitado, usa apenas polling
+      const isWebSocketDisabled = import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
+      
+      if (!isWebSocketDisabled) {
+        // Connect to WebSocket
+        const socket = wsService.connect();
+        socketRef.current = socket;
 
-      // Join restaurant room
-      socket.emit('join-restaurant', { restaurantId: user.restaurantId });
+        // Aguarda conexão antes de emitir eventos
+        const setupSocket = async () => {
+          const connected = await wsService.waitForConnection(5000);
+          
+          if (connected) {
+            // Join restaurant room
+            wsService.safeEmit('join-restaurant', { restaurantId: user.restaurantId });
+          } else {
+            console.warn('WebSocket não conectado a tempo, usando polling');
+            toastRef.current.warning('Conexão em tempo real indisponível. Usando atualização periódica.');
+          }
+        };
 
-      // Listen for queue updates
-      socket.on('queue-updated', (queueData: QueueItem[]) => {
-        setQueue(queueData);
-      });
+        setupSocket();
 
-      // Initial data load
-      refreshData();
+        // Listen for queue updates
+        socket.on('queue-updated', (queueData: QueueItem[]) => {
+          setQueue(queueData);
+        });
+
+        // Listen for errors
+        socket.on('error', (error: any) => {
+          console.error('Erro no WebSocket:', error);
+          toastRef.current.error(error?.message || 'Erro na conexão em tempo real');
+        });
+
+        // Listen for connection status
+        const unsubscribeError = wsService.onError((error) => {
+          console.error('Erro de conexão WebSocket:', error);
+          // Não mostra toast para tentativas de reconexão intermediárias
+          if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
+            toastRef.current.error(error.message);
+          }
+        });
+
+        // Initial data load
+        refreshData();
+
+        return () => {
+          socket.off('queue-updated');
+          socket.off('error');
+          unsubscribeError();
+          wsService.disconnect();
+        };
+      } else {
+        // WebSocket desabilitado - usando apenas polling silenciosamente
+      }
+
+      // Polling automático (sempre ativo, mais frequente se WebSocket desabilitado)
+      const pollInterval = isWebSocketDisabled ? 5000 : 30000; // 5s se desabilitado, 30s se habilitado
+      
+      const pollData = async () => {
+        try {
+          await refreshData();
+        } catch (error) {
+          console.error('Erro no polling:', error);
+        }
+      };
+
+      // Poll inicial
+      pollData();
+      
+      // Poll periódico
+      const interval = setInterval(pollData, pollInterval);
 
       return () => {
-        socket.off('queue-updated');
-        wsService.disconnect();
+        if (!isWebSocketDisabled) {
+          const socket = socketRef.current;
+          if (socket) {
+            socket.off('queue-updated');
+            socket.off('error');
+          }
+          wsService.disconnect();
+        }
+        clearInterval(interval);
       };
     } else {
       // Disconnect when not authenticated
       wsService.disconnect();
       socketRef.current = null;
     }
-  }, [isAuthenticated, user?.restaurantId, refreshData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.restaurantId]);
 
   // --- ACTIONS ---
 
