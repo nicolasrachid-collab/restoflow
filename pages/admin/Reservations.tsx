@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { useResto } from '../../context/RestoContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -8,6 +9,7 @@ import { api } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export const Reservations: React.FC = () => {
+  const toast = useToast();
   const { reservations, updateReservationStatus, addReservation } = useResto();
   const navigate = useNavigate();
   const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -94,7 +96,7 @@ export const Reservations: React.FC = () => {
                   variant="secondary"
                   onClick={() => {
                     navigator.clipboard.writeText(reservationUrl);
-                    alert('Link copiado!');
+                    toast.success('Link copiado!');
                   }}
                 >
                   <Copy size={14} className="mr-1" /> Copiar Link
@@ -194,9 +196,11 @@ export const Reservations: React.FC = () => {
             
             setRescheduleModal({ open: false, reservationId: null, newDate: '', newTime: '' });
             // refreshData será chamado via WebSocket ou contexto
-          } catch (error) {
+            toast.success('Reserva reagendada com sucesso!');
+          } catch (error: any) {
             console.error('Erro ao reagendar', error);
-            alert('Erro ao reagendar reserva');
+            const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao reagendar reserva';
+            toast.error(errorMessage);
           }
         }} className="space-y-4">
           <div>

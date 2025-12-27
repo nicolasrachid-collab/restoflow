@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { LinkCard } from '../../components/admin/LinkCard';
@@ -19,6 +20,7 @@ interface PublicLinksResponse {
 }
 
 export const PublicLinks: React.FC = () => {
+  const toast = useToast();
   const [links, setLinks] = useState<PublicLinksResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -44,7 +46,7 @@ export const PublicLinks: React.FC = () => {
 
   const handleCreateLink = async () => {
     if (!linkName.trim()) {
-      alert('Digite um nome para o link');
+      toast.warning('Digite um nome para o link');
       return;
     }
 
@@ -54,9 +56,11 @@ export const PublicLinks: React.FC = () => {
       setLinkName('');
       setShowCreateModal(false);
       loadLinks();
-    } catch (error) {
+      toast.success('Link criado com sucesso!');
+    } catch (error: any) {
       console.error('Erro ao criar link', error);
-      alert('Erro ao criar link');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao criar link';
+      toast.error(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -130,7 +134,7 @@ export const PublicLinks: React.FC = () => {
                   variant="secondary" 
                   onClick={() => {
                     navigator.clipboard.writeText(`${baseUrl}${links.default.queueUrl}`);
-                    alert('Link copiado!');
+                    toast.success('Link copiado!');
                   }}
                   className="flex-1"
                 >
@@ -160,7 +164,7 @@ export const PublicLinks: React.FC = () => {
                   variant="secondary" 
                   onClick={() => {
                     navigator.clipboard.writeText(`${baseUrl}${links.default.reservationUrl}`);
-                    alert('Link copiado!');
+                    toast.success('Link copiado!');
                   }}
                   className="flex-1"
                 >
@@ -190,7 +194,7 @@ export const PublicLinks: React.FC = () => {
                   variant="secondary" 
                   onClick={() => {
                     navigator.clipboard.writeText(`${baseUrl}${links.default.menuUrl}`);
-                    alert('Link copiado!');
+                    toast.success('Link copiado!');
                   }}
                   className="flex-1"
                 >

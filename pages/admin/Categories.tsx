@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { api } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 import { Plus, Edit, Trash2, GripVertical, Check, X } from 'lucide-react';
 
 interface Category {
@@ -15,10 +17,13 @@ interface Category {
 }
 
 export const Categories: React.FC = () => {
+  const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
   const [categoryIsActive, setCategoryIsActive] = useState(true);
@@ -32,9 +37,10 @@ export const Categories: React.FC = () => {
     try {
       const data = await api.get<Category[]>('/menu/categories');
       setCategories(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar categorias', error);
-      alert('Erro ao carregar categorias');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar categorias';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -42,7 +48,7 @@ export const Categories: React.FC = () => {
 
   const handleCreate = async () => {
     if (!categoryName.trim()) {
-      alert('Digite um nome para a categoria');
+      toast.warning('Digite um nome para a categoria');
       return;
     }
 
@@ -56,9 +62,11 @@ export const Categories: React.FC = () => {
       setCategoryIsActive(true);
       setShowCreateModal(false);
       loadCategories();
+      toast.success('Categoria criada com sucesso!');
     } catch (error: any) {
       console.error('Erro ao criar categoria', error);
-      alert(error.message || 'Erro ao criar categoria');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao criar categoria';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -73,7 +81,7 @@ export const Categories: React.FC = () => {
 
   const handleUpdate = async () => {
     if (!editingCategory || !categoryName.trim()) {
-      alert('Digite um nome para a categoria');
+      toast.warning('Digite um nome para a categoria');
       return;
     }
 
@@ -88,25 +96,35 @@ export const Categories: React.FC = () => {
       setCategoryIsActive(true);
       setShowEditModal(false);
       loadCategories();
+      toast.success('Categoria atualizada com sucesso!');
     } catch (error: any) {
       console.error('Erro ao atualizar categoria', error);
-      alert(error.message || 'Erro ao atualizar categoria');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao atualizar categoria';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
-      return;
-    }
+  const handleDeleteClick = (category: Category) => {
+    setDeletingCategory(category);
+    setShowDeleteModal(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!deletingCategory) return;
+    setShowDeleteModal(false);
+    
     try {
-      await api.delete(`/menu/categories/${id}`);
+      await api.delete(`/menu/categories/${deletingCategory.id}`);
       loadCategories();
+      toast.success('Categoria excluída com sucesso!');
     } catch (error: any) {
       console.error('Erro ao excluir categoria', error);
-      alert(error.message || 'Erro ao excluir categoria');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao excluir categoria';
+      toast.error(errorMessage);
+    } finally {
+      setDeletingCategory(null);
     }
   };
 
@@ -127,9 +145,11 @@ export const Categories: React.FC = () => {
     try {
       await api.post('/menu/categories/reorder', { items: reorderItems });
       loadCategories();
+      toast.success('Ordem das categorias atualizada!');
     } catch (error: any) {
       console.error('Erro ao reordenar categorias', error);
-      alert(error.message || 'Erro ao reordenar categorias');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao reordenar categorias';
+      toast.error(errorMessage);
     }
   };
 
@@ -150,9 +170,11 @@ export const Categories: React.FC = () => {
     try {
       await api.post('/menu/categories/reorder', { items: reorderItems });
       loadCategories();
+      toast.success('Ordem das categorias atualizada!');
     } catch (error: any) {
       console.error('Erro ao reordenar categorias', error);
-      alert(error.message || 'Erro ao reordenar categorias');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao reordenar categorias';
+      toast.error(errorMessage);
     }
   };
 
@@ -162,9 +184,11 @@ export const Categories: React.FC = () => {
         isActive: !category.isActive,
       });
       loadCategories();
+      toast.success(`Categoria ${!category.isActive ? 'ativada' : 'desativada'} com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao atualizar categoria', error);
-      alert(error.message || 'Erro ao atualizar categoria');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao atualizar categoria';
+      toast.error(errorMessage);
     }
   };
 
@@ -249,7 +273,7 @@ export const Categories: React.FC = () => {
                     <Edit size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(category.id)}
+                    onClick={() => handleDeleteClick(category)}
                     className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     disabled={(category._count?.menuItems || 0) > 0}
                     title={
@@ -376,6 +400,20 @@ export const Categories: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirm Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingCategory(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Excluir Categoria"
+        message={`Tem certeza que deseja excluir a categoria "${deletingCategory?.name}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        variant="danger"
+      />
     </div>
   );
 };
