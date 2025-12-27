@@ -68,6 +68,8 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Se WebSocket está desabilitado, usa apenas polling
       const isWebSocketDisabled = import.meta.env.VITE_DISABLE_WEBSOCKET === 'true';
       
+      let unsubscribeError: (() => void) | null = null;
+      
       if (!isWebSocketDisabled) {
         // Connect to WebSocket
         const socket = wsService.connect();
@@ -100,25 +102,13 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
 
         // Listen for connection status
-        const unsubscribeError = wsService.onError((error) => {
+        unsubscribeError = wsService.onError((error) => {
           console.error('Erro de conexão WebSocket:', error);
           // Não mostra toast para tentativas de reconexão intermediárias
           if (error.message.includes('Máximo de tentativas') || error.message.includes('Não foi possível conectar')) {
             toastRef.current.error(error.message);
           }
         });
-
-        // Initial data load
-        refreshData();
-
-        return () => {
-          socket.off('queue-updated');
-          socket.off('error');
-          unsubscribeError();
-          wsService.disconnect();
-        };
-      } else {
-        // WebSocket desabilitado - usando apenas polling silenciosamente
       }
 
       // Polling automático (sempre ativo, mais frequente se WebSocket desabilitado)
@@ -144,6 +134,9 @@ export const RestoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (socket) {
             socket.off('queue-updated');
             socket.off('error');
+          }
+          if (unsubscribeError) {
+            unsubscribeError();
           }
           wsService.disconnect();
         }
