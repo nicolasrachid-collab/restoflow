@@ -10,7 +10,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
       <header className="w-full bg-white border-b border-gray-200 p-4 sticky top-0 z-10 shadow-sm">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div>
-             <h1 className="text-lg font-bold text-gray-900 capitalize">{slug?.replace('-', ' ') || 'Restaurante'}</h1>
+             <h1 className="text-lg font-bold text-gray-900 capitalize">{slug?.replace(/-/g, ' ') || 'Restaurante'}</h1>
              <p className="text-xs text-gray-500">Aberto • Fecha às 23h</p>
           </div>
           <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs">

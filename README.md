@@ -34,17 +34,22 @@ Este repositório contém o **Blueprint Funcional** do RestoFlow. É uma aplica�
 O projeto funciona **sem necessidade de backend, banco de dados ou Docker**. Por padrão, usa dados mockados com persistência local (localStorage).
 
 1. **Pré-requisitos:** Node.js 18+.
-2. **Instalação:**
+2. **Início Automático (Recomendado):**
    ```bash
-   npm install
+   npm start
    ```
-3. **Execução:**
+   O script `start.ps1` verifica e configura tudo automaticamente!
+
+3. **Ou início manual:**
    ```bash
+   npm install  # Apenas na primeira vez
    npm run dev
    ```
 4. **Acesse:** `http://localhost:5173`
 
 **Pronto!** O sistema funciona imediatamente sem configuração adicional.
+
+> 💡 **Dica:** Use `npm start` para garantir que tudo está configurado corretamente antes de iniciar!
 
 ### Modo com Servidor (Opcional)
 

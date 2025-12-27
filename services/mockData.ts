@@ -110,6 +110,12 @@ const defaultRestaurant = {
   averageTableTimeMinutes: 60,
   calledTimeoutMinutes: 10,
   themeColor: '#f97316',
+  logoUrl: undefined,
+  description: undefined,
+  phone: undefined,
+  email: undefined,
+  customDomain: undefined,
+  socialMedia: undefined,
 };
 
 // Carregar dados do localStorage ou usar padrões
@@ -596,6 +602,32 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
       return mockRestaurant as T;
     }
 
+    if (endpoint === '/restaurants/config') {
+      if (!isAuthenticated()) throw { status: 401 };
+      if (body && Object.keys(body).length > 0) {
+        // PATCH - Atualizar configurações
+        Object.assign(mockRestaurant, body);
+        restaurantStorage.save(mockRestaurant);
+        return mockRestaurant as T;
+      }
+      // GET - Retornar configurações
+      return mockRestaurant as T;
+    }
+
+    if (endpoint === '/restaurants/queue-active') {
+      if (!isAuthenticated()) throw { status: 401 };
+      mockRestaurant.queueActive = !mockRestaurant.queueActive;
+      restaurantStorage.save(mockRestaurant);
+      return mockRestaurant as T;
+    }
+
+    if (endpoint === '/restaurants/active') {
+      if (!isAuthenticated()) throw { status: 401 };
+      mockRestaurant.isActive = !mockRestaurant.isActive;
+      restaurantStorage.save(mockRestaurant);
+      return mockRestaurant as T;
+    }
+
     // Health check
     if (endpoint === '/health') {
       return { status: 'ok', mode: 'mock' } as T;
@@ -696,6 +728,11 @@ export const mockApi: MockApi = {
 
     // Restaurant
     if (endpoint === '/restaurants/me') {
+      if (!isAuthenticated()) throw { status: 401 };
+      return mockRestaurant as T;
+    }
+
+    if (endpoint === '/restaurants/config') {
       if (!isAuthenticated()) throw { status: 401 };
       return mockRestaurant as T;
     }

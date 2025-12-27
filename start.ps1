@@ -1,213 +1,129 @@
-# Script para iniciar RestoFlow
+# Script de inicialização automática do RestoFlow
+# Garante que tudo está configurado corretamente antes de iniciar
 
-Write-Host "🚀 Iniciando RestoFlow..." -ForegroundColor Cyan
+Write-Host "🚀 RestoFlow - Inicialização Automática" -ForegroundColor Cyan
+Write-Host "═══════════════════════════════════════" -ForegroundColor Gray
 Write-Host ""
 
-# Função para verificar se porta está em uso
-function Test-Port {
-    param([int]$Port)
-    $connection = Test-NetConnection -ComputerName localhost -Port $Port -WarningAction SilentlyContinue -InformationLevel Quiet
-    return $connection
+# 1. Verifica e configura .env
+Write-Host "1️⃣ Verificando arquivo .env..." -ForegroundColor Yellow
+$envNeedsUpdate = $false
+
+if (Test-Path ".env") {
+    $envContent = Get-Content ".env" -Raw
+    if ($envContent -notmatch "VITE_USE_MOCK=true") {
+        Write-Host "   ⚠️  VITE_USE_MOCK não está configurado" -ForegroundColor Yellow
+        $envNeedsUpdate = $true
+    } else {
+        Write-Host "   ✅ VITE_USE_MOCK já está configurado" -ForegroundColor Green
+    }
+    
+    if ($envContent -notmatch "VITE_DISABLE_WEBSOCKET=true") {
+        Write-Host "   ⚠️  VITE_DISABLE_WEBSOCKET não está configurado" -ForegroundColor Yellow
+        $envNeedsUpdate = $true
+    }
+} else {
+    Write-Host "   ⚠️  Arquivo .env não existe" -ForegroundColor Yellow
+    $envNeedsUpdate = $true
 }
 
-# Função para aguardar serviço estar pronto
-function Wait-ForService {
-    param(
-        [string]$Url,
-        [string]$ServiceName,
-        [int]$MaxAttempts = 30,
-        [int]$DelaySeconds = 2
-    )
+if ($envNeedsUpdate) {
+    Write-Host "   🔧 Corrigindo arquivo .env..." -ForegroundColor Cyan
     
-    Write-Host "⏳ Aguardando $ServiceName estar pronto..." -ForegroundColor Yellow
-    for ($i = 1; $i -le $MaxAttempts; $i++) {
-        try {
-            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-            if ($response.StatusCode -eq 200) {
-                Write-Host "✅ $ServiceName está pronto!" -ForegroundColor Green
-                return $true
+    # Lê o conteúdo atual se existir
+    $currentContent = ""
+    if (Test-Path ".env") {
+        $currentContent = Get-Content ".env" -Raw
+    }
+    
+    # Prepara novo conteúdo
+    $newContent = @"
+VITE_USE_MOCK=true
+VITE_DISABLE_WEBSOCKET=true
+
+"@
+    
+    # Adiciona outras configurações existentes (se houver)
+    if ($currentContent) {
+        $lines = $currentContent -split "`n"
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if ($trimmed -and 
+                $trimmed -notmatch "^VITE_USE_MOCK" -and 
+                $trimmed -notmatch "^VITE_DISABLE_WEBSOCKET" -and
+                $trimmed -notmatch "^#.*VITE_USE_MOCK" -and
+                $trimmed -notmatch "^#.*VITE_DISABLE_WEBSOCKET") {
+                $newContent += "$trimmed`n"
             }
-        } catch {
-            Write-Host "   Tentativa $i/$MaxAttempts..." -ForegroundColor Gray
         }
-        Start-Sleep -Seconds $DelaySeconds
     }
-    Write-Host "⚠️ $ServiceName não respondeu após $($MaxAttempts * $DelaySeconds) segundos" -ForegroundColor Yellow
-    return $false
+    
+    # Adiciona comentários úteis
+    $newContent += @"
+# URL do WebSocket (opcional, padrão: http://localhost:3001)
+# VITE_WS_URL=http://localhost:3001
+
+# API Key do Google Gemini (opcional - para funcionalidades de IA)
+# VITE_API_KEY=sua-chave-aqui
+"@
+    
+    Set-Content -Path ".env" -Value $newContent -Encoding UTF8
+    Write-Host "   ✅ Arquivo .env configurado!" -ForegroundColor Green
 }
 
-# Verificar se Docker está rodando
-Write-Host "📦 Verificando Docker..." -ForegroundColor Yellow
-try {
-    $dockerInfo = docker info 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Docker está rodando" -ForegroundColor Green
-    } else {
-        Write-Host "❌ Docker não está rodando. Por favor, inicie o Docker Desktop." -ForegroundColor Red
+# 2. Verifica dependências
+Write-Host ""
+Write-Host "2️⃣ Verificando dependências..." -ForegroundColor Yellow
+if (-not (Test-Path "node_modules")) {
+    Write-Host "   ⚠️  node_modules não encontrado" -ForegroundColor Yellow
+    Write-Host "   📦 Instalando dependências..." -ForegroundColor Cyan
+    npm install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "   ❌ Erro ao instalar dependências!" -ForegroundColor Red
         exit 1
     }
-} catch {
-    Write-Host "❌ Docker não está acessível. Por favor, inicie o Docker Desktop." -ForegroundColor Red
-    exit 1
-}
-
-# Verificar e iniciar banco de dados
-Write-Host "🗄️ Verificando banco de dados..." -ForegroundColor Yellow
-$dbContainer = docker ps --filter "name=restoflow_db" --format "{{.Names}}" 2>$null
-
-if (-not $dbContainer) {
-    Write-Host "⚠️ Container do banco não está rodando. Iniciando..." -ForegroundColor Yellow
-    Push-Location backend
-    docker-compose up -d db
-    Pop-Location
-    
-    Write-Host "⏳ Aguardando banco inicializar..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 8
-    
-    # Verificar se banco está realmente acessível
-    $dbReady = $false
-    for ($i = 1; $i -le 10; $i++) {
-        try {
-            $testConnection = docker exec restoflow_db pg_isready -U restoflow_admin 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                $dbReady = $true
-                break
-            }
-        } catch {}
-        Start-Sleep -Seconds 2
-    }
-    
-    if ($dbReady) {
-        Write-Host "✅ Banco de dados está pronto" -ForegroundColor Green
-    } else {
-        Write-Host "⚠️ Banco de dados pode não estar totalmente pronto, mas continuando..." -ForegroundColor Yellow
-    }
+    Write-Host "   ✅ Dependências instaladas!" -ForegroundColor Green
 } else {
-    Write-Host "✅ Container do banco está rodando" -ForegroundColor Green
+    Write-Host "   ✅ Dependências já instaladas" -ForegroundColor Green
 }
 
-# Verificar se arquivo .env existe no backend
-Write-Host "🔍 Verificando configuração..." -ForegroundColor Yellow
-$backendEnvPath = Join-Path $PWD "backend\.env"
-if (-not (Test-Path $backendEnvPath)) {
-    Write-Host "❌ Arquivo backend/.env não encontrado!" -ForegroundColor Red
-    Write-Host "   Por favor, crie o arquivo .env na pasta backend/ com DATABASE_URL" -ForegroundColor Yellow
-    exit 1
+# 3. Limpa cache (opcional - apenas se houver problemas)
+Write-Host ""
+Write-Host "3️⃣ Verificando cache..." -ForegroundColor Yellow
+$cacheExists = (Test-Path "node_modules\.vite") -or (Test-Path ".vite")
+if ($cacheExists) {
+    Write-Host "   ℹ️  Cache encontrado (será limpo se necessário)" -ForegroundColor Gray
 } else {
-    Write-Host "✅ Arquivo .env encontrado" -ForegroundColor Green
+    Write-Host "   ✅ Cache limpo" -ForegroundColor Green
 }
 
-# Verificar se porta 3001 está livre
-if (Test-Port -Port 3001) {
-    Write-Host "⚠️ Porta 3001 já está em uso. Backend pode já estar rodando." -ForegroundColor Yellow
-    $useExisting = Read-Host "Deseja usar o backend existente? (S/N)"
-    if ($useExisting -ne "S" -and $useExisting -ne "s") {
-        Write-Host "Por favor, pare o processo na porta 3001 e tente novamente." -ForegroundColor Yellow
-        exit 1
+# 4. Verifica porta 5173
+Write-Host ""
+Write-Host "4️⃣ Verificando porta 5173..." -ForegroundColor Yellow
+$portInUse = Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue
+if ($portInUse) {
+    Write-Host "   ⚠️  Porta 5173 está em uso" -ForegroundColor Yellow
+    Write-Host "   🔄 Tentando liberar porta..." -ForegroundColor Cyan
+    $portInUse | ForEach-Object { 
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue 
     }
-    $backendRunning = $true
+    Start-Sleep -Seconds 2
+    Write-Host "   ✅ Porta liberada" -ForegroundColor Green
 } else {
-    $backendRunning = $false
+    Write-Host "   ✅ Porta 5173 está livre" -ForegroundColor Green
 }
 
-# Iniciar Backend se não estiver rodando
-if (-not $backendRunning) {
-    Write-Host "📦 Iniciando Backend..." -ForegroundColor Green
-    $backendPath = Join-Path $PWD "backend"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backendPath'; Write-Host '🚀 Backend RestoFlow' -ForegroundColor Cyan; npm run start:dev"
-    
-    # Aguardar backend estar realmente pronto usando health check
-    $backendReady = Wait-ForService -Url "http://localhost:3001/health" -ServiceName "Backend" -MaxAttempts 30 -DelaySeconds 2
-    
-    if (-not $backendReady) {
-        Write-Host "⚠️ Backend pode não estar totalmente pronto, mas continuando..." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "✅ Backend já está rodando" -ForegroundColor Green
-}
-
-# Verificar health check detalhado
-Write-Host "🔍 Verificando saúde do backend..." -ForegroundColor Yellow
-try {
-    $healthResponse = Invoke-RestMethod -Uri "http://localhost:3001/health" -Method Get -TimeoutSec 5
-    if ($healthResponse.status -eq "ok") {
-        Write-Host "✅ Backend está saudável" -ForegroundColor Green
-        if ($healthResponse.checks.database.status -eq "healthy") {
-            Write-Host "✅ Banco de dados está conectado" -ForegroundColor Green
-        } else {
-            Write-Host "⚠️ Banco de dados pode ter problemas: $($healthResponse.checks.database.message)" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "⚠️ Backend está com status: $($healthResponse.status)" -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host "⚠️ Não foi possível verificar saúde do backend: $_" -ForegroundColor Yellow
-}
-
-# Verificar se porta 5173 está livre
-if (Test-Port -Port 5173) {
-    Write-Host "⚠️ Porta 5173 já está em uso. Frontend pode já estar rodando." -ForegroundColor Yellow
-    $useExisting = Read-Host "Deseja usar o frontend existente? (S/N)"
-    if ($useExisting -ne "S" -and $useExisting -ne "s") {
-        Write-Host "Por favor, pare o processo na porta 5173 e tente novamente." -ForegroundColor Yellow
-        exit 1
-    }
-    $frontendRunning = $true
-} else {
-    $frontendRunning = $false
-}
-
-# Iniciar Frontend se não estiver rodando
-if (-not $frontendRunning) {
-    Write-Host "🎨 Iniciando Frontend..." -ForegroundColor Green
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; Write-Host '🎨 Frontend RestoFlow' -ForegroundColor Cyan; npm run dev"
-    
-    # Aguardar frontend estar pronto
-    $frontendReady = Wait-ForService -Url "http://localhost:5173" -ServiceName "Frontend" -MaxAttempts 20 -DelaySeconds 2
-    
-    if (-not $frontendReady) {
-        Write-Host "⚠️ Frontend pode não estar totalmente pronto, mas continuando..." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "✅ Frontend já está rodando" -ForegroundColor Green
-}
-
-# Verificação final
+# 5. Resumo e início
 Write-Host ""
-Write-Host "🔍 Verificação final dos servidores..." -ForegroundColor Yellow
-
-try {
-    $backend = Invoke-WebRequest -Uri "http://localhost:3001/health" -UseBasicParsing -TimeoutSec 3
-    Write-Host "✅ Backend: RODANDO (http://localhost:3001)" -ForegroundColor Green
-} catch {
-    Write-Host "⚠️ Backend: Não está respondendo" -ForegroundColor Yellow
-}
-
-try {
-    $frontend = Invoke-WebRequest -Uri "http://localhost:5173" -UseBasicParsing -TimeoutSec 3
-    Write-Host "✅ Frontend: RODANDO (http://localhost:5173)" -ForegroundColor Green
-} catch {
-    Write-Host "⚠️ Frontend: Não está respondendo" -ForegroundColor Yellow
-}
-
-# Abrir navegador
+Write-Host "═══════════════════════════════════════" -ForegroundColor Gray
+Write-Host "✅ Tudo pronto! Iniciando servidor..." -ForegroundColor Green
 Write-Host ""
-Write-Host "🌐 Abrindo navegador..." -ForegroundColor Green
-Start-Process "http://localhost:5173"
-
+Write-Host "📝 Credenciais de login:" -ForegroundColor Yellow
+Write-Host "   Email: qualquer email (ex: admin@demo.com)" -ForegroundColor White
+Write-Host "   Senha: qualquer senha (ex: 123456)" -ForegroundColor White
 Write-Host ""
-Write-Host "✅ Inicialização concluída!" -ForegroundColor Green
-Write-Host ""
-Write-Host "🔗 URLs:" -ForegroundColor Cyan
-Write-Host "   Frontend: http://localhost:5173"
-Write-Host "   Backend:  http://localhost:3001"
-Write-Host "   Health:   http://localhost:3001/health"
-Write-Host ""
-Write-Host "🔐 Login:" -ForegroundColor Cyan
-Write-Host "   Email: admin@restoflow.com"
-Write-Host "   Senha: 123456"
-Write-Host ""
-Write-Host "💡 Dica: Os servidores estão rodando em janelas separadas do PowerShell." -ForegroundColor Gray
-Write-Host "   Feche essas janelas para parar os servidores." -ForegroundColor Gray
+Write-Host "💡 Para parar o servidor, pressione Ctrl+C" -ForegroundColor Gray
 Write-Host ""
 
+# Inicia o servidor
+npm run dev

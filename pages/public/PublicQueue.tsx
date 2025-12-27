@@ -78,9 +78,11 @@ export const PublicQueue: React.FC = () => {
     if (ticketStatus?.toUpperCase() === 'CALLED' && view === 'STATUS') {
       console.log('🔔 Status é CALLED! Forçando atualização da tela...');
       // Força scroll para o topo para garantir que a tela seja visível
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [ticketStatus, view]);
 

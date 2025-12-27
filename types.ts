@@ -32,6 +32,15 @@ export interface Restaurant {
   averageTableTimeMinutes: number;
   calledTimeoutMinutes: number;
   themeColor?: string;
+  logoUrl?: string; // URL/base64 da logo
+  description?: string; // Descrição do restaurante
+  phone?: string; // Telefone de contato
+  email?: string; // Email de contato
+  customDomain?: string; // Domínio customizado (opcional)
+  socialMedia?: {
+    instagram?: string;
+    facebook?: string;
+  }; // Redes sociais
 }
 
 export interface Category {
