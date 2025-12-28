@@ -18,6 +18,8 @@ import { Categories } from './pages/admin/Categories';
 import { OperatingHours } from './pages/admin/OperatingHours';
 import { RestaurantSettings } from './pages/admin/RestaurantSettings';
 import { Users } from './pages/admin/Users';
+import { Reports } from './pages/admin/Reports';
+import { Customers } from './pages/admin/Customers';
 
 // Auth Pages
 import { Login } from './pages/auth/Login';
@@ -62,6 +64,8 @@ const AppRoutes: React.FC = () => {
         <Route path="/admin/links" element={<ProtectedRoute><AdminLayout><PublicLinks /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/settings" element={<ProtectedRoute><AdminLayout><RestaurantSettings /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute><AdminLayout><Users /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/customers" element={<ProtectedRoute><AdminLayout><Customers /></AdminLayout></ProtectedRoute>} />
 
         {/* Default Redirects */}
         <Route path="/" element={<Navigate to="/login" replace />} />

@@ -134,5 +134,105 @@ export class MetricsService {
       totalPeopleServed,
     };
   }
+
+  /**
+   * Retorna dados históricos agrupados por dia para gráficos
+   */
+  async getHistoricalData(
+    restaurantId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Buscar itens da fila no período
+    const queueItems = await (this.prisma as any).queueItem.findMany({
+      where: {
+        restaurantId,
+        joinedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    // Buscar reservas no período
+    const reservations = await (this.prisma as any).reservation.findMany({
+      where: {
+        restaurantId,
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    // Agrupar por data
+    const dataByDate: Record<string, {
+      date: string;
+      queueCompleted: number;
+      queueNoShows: number;
+      queueCancelled: number;
+      reservationsConfirmed: number;
+      reservationsCompleted: number;
+      reservationsNoShows: number;
+      totalPeople: number;
+    }> = {};
+
+    // Inicializar todas as datas no intervalo
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      dataByDate[dateStr] = {
+        date: dateStr,
+        queueCompleted: 0,
+        queueNoShows: 0,
+        queueCancelled: 0,
+        reservationsConfirmed: 0,
+        reservationsCompleted: 0,
+        reservationsNoShows: 0,
+        totalPeople: 0,
+      };
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Processar itens da fila
+    queueItems.forEach((item: any) => {
+      const dateStr = new Date(item.joinedAt).toISOString().split('T')[0];
+      if (!dataByDate[dateStr]) return;
+
+      if (item.status === QueueStatus.DONE) {
+        dataByDate[dateStr].queueCompleted++;
+        dataByDate[dateStr].totalPeople += item.partySize || 0;
+      } else if (item.status === QueueStatus.NO_SHOW) {
+        dataByDate[dateStr].queueNoShows++;
+      } else if (item.status === QueueStatus.CANCELLED) {
+        dataByDate[dateStr].queueCancelled++;
+      }
+    });
+
+    // Processar reservas
+    reservations.forEach((res: any) => {
+      const dateStr = new Date(res.date).toISOString().split('T')[0];
+      if (!dataByDate[dateStr]) return;
+
+      if (res.status === ReservationStatus.CONFIRMED) {
+        dataByDate[dateStr].reservationsConfirmed++;
+      } else if (res.status === ReservationStatus.COMPLETED) {
+        dataByDate[dateStr].reservationsCompleted++;
+        dataByDate[dateStr].totalPeople += res.partySize || 0;
+      } else if (res.status === ReservationStatus.NO_SHOW) {
+        dataByDate[dateStr].reservationsNoShows++;
+      }
+    });
+
+    // Converter para array e ordenar por data
+    return Object.values(dataByDate).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }
 }
 

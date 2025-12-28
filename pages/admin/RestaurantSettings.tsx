@@ -23,6 +23,9 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Bell,
+  MessageSquare,
+  Smartphone,
 } from 'lucide-react';
 import { Restaurant } from '../../types';
 
@@ -39,7 +42,7 @@ export const RestaurantSettings: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['identity', 'domain', 'contact', 'operational', 'status'])
+    new Set(['identity', 'domain', 'contact', 'operational', 'notifications', 'status'])
   );
 
   const [formData, setFormData] = useState({
@@ -769,7 +772,119 @@ export const RestaurantSettings: React.FC = () => {
         )}
       </div>
 
-      {/* Seção 5: Status do Sistema */}
+      {/* Seção 5: Notificações */}
+      <div className="space-y-4">
+        <SectionHeader
+          id="notifications"
+          icon={<Bell size={20} />}
+          title="Configurações de Notificações"
+          description="Preferências de envio de SMS, WhatsApp e Email"
+        />
+        {expandedSections.has('notifications') && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>ℹ️ Informação:</strong> As configurações de notificações (Twilio, SMTP) devem ser feitas no arquivo <code className="bg-blue-100 px-1 rounded">.env</code> do backend. 
+                Consulte <code className="bg-blue-100 px-1 rounded">backend/NOTIFICACOES_CONFIG.md</code> para mais detalhes.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Smartphone size={16} />
+                Canais de Notificação
+              </h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                      <MessageSquare size={18} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">SMS</p>
+                      <p className="text-xs text-gray-500">Notificações via SMS (Twilio)</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    Mock
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                      <MessageSquare size={18} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">WhatsApp</p>
+                      <p className="text-xs text-gray-500">Notificações via WhatsApp (Twilio)</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    Mock
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                      <Mail size={18} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Email</p>
+                      <p className="text-xs text-gray-500">Notificações via Email (SMTP)</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    Mock
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-4">Quando Enviar Notificações</h4>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">Alerta de Fila</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Quando o cliente está na posição 3, 1 ou quando é chamado
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">Confirmação de Reserva</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Quando uma reserva é confirmada pelo restaurante
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">Lembrete de Reserva</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enviado automaticamente antes da data da reserva (em breve)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-amber-800">
+                <strong>💡 Dica:</strong> Para testar notificações sem custo, use o modo mock (padrão). 
+                Para produção, configure as credenciais no backend conforme documentação.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Seção 6: Status do Sistema */}
       <div className="space-y-4">
         <SectionHeader
           id="status"

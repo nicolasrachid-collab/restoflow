@@ -1,9 +1,16 @@
 // Dados mockados para desenvolvimento offline (sem backend)
-import { QueueItem, MenuItem, Reservation, QueueStatus, ReservationStatus, Category, PublicLink } from '../types';
-import { queueStorage, menuStorage, reservationsStorage, restaurantStorage, categoriesStorage, publicLinksStorage } from './localStorage';
+import { QueueItem, MenuItem, Reservation, QueueStatus, ReservationStatus, Category, PublicLink, Customer } from '../types';
+import { queueStorage, menuStorage, reservationsStorage, restaurantStorage, categoriesStorage, publicLinksStorage, customersStorage } from './localStorage';
 
 // Simula delay de rede
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper para parsear query params de um endpoint
+const parseQueryParams = (endpoint: string): URLSearchParams => {
+  const parts = endpoint.split('?');
+  if (parts.length < 2) return new URLSearchParams();
+  return new URLSearchParams(parts[1]);
+};
 
 // Dados padrão (usados se localStorage estiver vazio)
 const defaultQueue: QueueItem[] = [
@@ -152,6 +159,66 @@ const defaultPublicLinks: PublicLink[] = [];
 // Inicializar categories e publicLinks
 let mockCategories: Category[] = initData(categoriesStorage, defaultCategories, (data) => data.length === 0);
 let mockPublicLinks: PublicLink[] = initData(publicLinksStorage, defaultPublicLinks, (data) => data.length === 0);
+
+// Função para extrair clientes únicos de fila e reservas
+const extractCustomersFromData = (): Customer[] => {
+  const customersMap = new Map<string, Customer>();
+  
+  // Extrair clientes da fila
+  mockQueue.forEach(item => {
+    if (item.phone && !customersMap.has(item.phone)) {
+      customersMap.set(item.phone, {
+        id: `customer-${item.phone.replace(/\D/g, '')}`,
+        name: item.customerName,
+        phone: item.phone,
+        email: item.email,
+        createdAt: item.joinedAt,
+        updatedAt: item.joinedAt,
+      });
+    }
+  });
+  
+  // Extrair clientes das reservas
+  mockReservations.forEach(res => {
+    if (res.phone && !customersMap.has(res.phone)) {
+      customersMap.set(res.phone, {
+        id: `customer-${res.phone.replace(/\D/g, '')}`,
+        name: res.customerName,
+        phone: res.phone,
+        email: res.email,
+        createdAt: res.date,
+        updatedAt: res.date,
+      });
+    }
+  });
+  
+  return Array.from(customersMap.values());
+};
+
+// Inicializar clientes - extrair dos dados existentes
+let mockCustomers: Customer[] = customersStorage.load([]);
+if (mockCustomers.length === 0) {
+  // Se não há clientes salvos, extrair dos dados de fila e reservas
+  mockCustomers = extractCustomersFromData();
+  if (mockCustomers.length > 0) {
+    customersStorage.save(mockCustomers);
+  }
+} else {
+  // Sincronizar clientes existentes com novos dados de fila/reservas
+  const extracted = extractCustomersFromData();
+  extracted.forEach(newCustomer => {
+    const existing = mockCustomers.find(c => c.phone === newCustomer.phone);
+    if (!existing) {
+      mockCustomers.push(newCustomer);
+    } else if (newCustomer.name !== existing.name || newCustomer.email !== existing.email) {
+      // Atualizar dados do cliente existente
+      existing.name = newCustomer.name;
+      if (newCustomer.email) existing.email = newCustomer.email;
+      existing.updatedAt = new Date();
+    }
+  });
+  customersStorage.save(mockCustomers);
+}
 
 // Função para calcular tempo médio de espera baseado nas últimas 5 mesas concluídas
 const calculateAverageWaitTime = (): number => {
@@ -464,33 +531,60 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
       return reservation as T;
     }
 
-    // Customers
-    if (endpoint === '/customers/find-or-create') {
-      const { phone, name } = body || {};
-      // Simula busca ou criação de cliente
-      const mockCustomer = {
-        id: Date.now().toString(),
-        name: name || 'Cliente',
-        phone,
-        email: undefined,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      return mockCustomer as T;
+    // Customers - List all
+    if (endpoint === '/customers') {
+      if (!isAuthenticated()) throw { status: 401 };
+      // Retornar lista de clientes
+      return mockCustomers as T;
     }
 
+    // Customers - Find or Create
+    if (endpoint === '/customers/find-or-create') {
+      const { phone, name } = body || {};
+      // Buscar cliente existente
+      let customer = mockCustomers.find(c => c.phone === phone);
+      if (!customer) {
+        // Criar novo cliente
+        customer = {
+          id: `customer-${Date.now()}`,
+          name: name || 'Cliente',
+          phone,
+          email: undefined,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockCustomers.push(customer);
+        customersStorage.save(mockCustomers);
+      } else if (name && customer.name !== name) {
+        // Atualizar nome se fornecido e diferente
+        customer.name = name;
+        customer.updatedAt = new Date();
+        customersStorage.save(mockCustomers);
+      }
+      return customer as T;
+    }
+
+    // Customers - Get by ID
+    if (endpoint.startsWith('/customers/') && !endpoint.includes('/find-or-create') && !body) {
+      const id = endpoint.split('/customers/')[1];
+      const customer = mockCustomers.find(c => c.id === id);
+      if (!customer) throw { status: 404, message: 'Cliente não encontrado' };
+      return customer as T;
+    }
+
+    // Customers - Update
     if (endpoint.startsWith('/customers/') && body) {
       const id = endpoint.split('/customers/')[1];
-      // Simula atualização de cliente
-      const mockCustomer = {
-        id,
-        name: body.name || 'Cliente',
-        phone: '(11) 99999-0000',
-        email: body.email,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      return mockCustomer as T;
+      const customerIndex = mockCustomers.findIndex(c => c.id === id);
+      if (customerIndex === -1) throw { status: 404, message: 'Cliente não encontrado' };
+      
+      const customer = mockCustomers[customerIndex];
+      if (body.name) customer.name = body.name;
+      if (body.email !== undefined) customer.email = body.email || undefined;
+      customer.updatedAt = new Date();
+      
+      customersStorage.save(mockCustomers);
+      return customer as T;
     }
 
     // Menu Categories
@@ -743,6 +837,174 @@ export const mockApi: MockApi = {
       return {
         default: [],
         custom: mockPublicLinks,
+      } as T;
+    }
+
+    // Metrics - Queue
+    if (endpoint.startsWith('/metrics/queue')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const params = parseQueryParams(endpoint);
+      const startDate = params.get('startDate');
+      const endDate = params.get('endDate');
+      
+      // Filtrar itens da fila por data se necessário
+      let filteredQueue = [...mockQueue];
+      if (startDate || endDate) {
+        filteredQueue = mockQueue.filter(item => {
+          const itemDate = new Date(item.joinedAt);
+          if (startDate && itemDate < new Date(startDate)) return false;
+          if (endDate && itemDate > new Date(endDate)) return false;
+          return true;
+        });
+      }
+      
+      const total = filteredQueue.length;
+      const completed = filteredQueue.filter(item => item.status === QueueStatus.DONE).length;
+      const noShows = filteredQueue.filter(item => item.status === QueueStatus.NO_SHOW).length;
+      const cancelled = filteredQueue.filter(item => item.status === QueueStatus.CANCELLED).length;
+      
+      // Calcular tempo médio de espera (apenas para concluídos com calledAt)
+      const completedItems = filteredQueue.filter(item => 
+        item.status === QueueStatus.DONE && item.calledAt
+      );
+      
+      let averageWaitMinutes = 0;
+      if (completedItems.length > 0) {
+        const totalWaitTime = completedItems.reduce((sum, item) => {
+          const waitTime = (new Date(item.calledAt!).getTime() - new Date(item.joinedAt).getTime()) / 60000;
+          return sum + waitTime;
+        }, 0);
+        averageWaitMinutes = Math.round(totalWaitTime / completedItems.length);
+      }
+      
+      const noShowRate = total > 0 ? Math.round((noShows / total) * 100 * 100) / 100 : 0;
+      
+      return {
+        total,
+        completed,
+        noShows,
+        cancelled,
+        averageWaitMinutes,
+        noShowRate,
+      } as T;
+    }
+
+    // Metrics - Reservations
+    if (endpoint.startsWith('/metrics/reservations')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const params = parseQueryParams(endpoint);
+      const startDate = params.get('startDate');
+      const endDate = params.get('endDate');
+      
+      let filteredReservations = [...mockReservations];
+      if (startDate || endDate) {
+        filteredReservations = mockReservations.filter(res => {
+          const resDate = new Date(res.date);
+          if (startDate && resDate < new Date(startDate)) return false;
+          if (endDate && resDate > new Date(endDate)) return false;
+          return true;
+        });
+      }
+      
+      const total = filteredReservations.length;
+      const confirmed = filteredReservations.filter(r => r.status === ReservationStatus.CONFIRMED).length;
+      const checkedIn = filteredReservations.filter(r => r.status === ReservationStatus.CHECKED_IN).length;
+      const completed = filteredReservations.filter(r => r.status === ReservationStatus.COMPLETED).length;
+      const noShows = filteredReservations.filter(r => r.status === ReservationStatus.NO_SHOW).length;
+      const cancelled = filteredReservations.filter(r => r.status === ReservationStatus.CANCELLED).length;
+      
+      const noShowRate = total > 0 ? Math.round((noShows / total) * 100 * 100) / 100 : 0;
+      const attendanceRate = confirmed > 0 
+        ? Math.round(((checkedIn + completed) / confirmed) * 100 * 100) / 100 
+        : 0;
+      
+      return {
+        total,
+        confirmed,
+        checkedIn,
+        completed,
+        noShows,
+        cancelled,
+        noShowRate,
+        attendanceRate,
+      } as T;
+    }
+
+    // Metrics - Capacity
+    if (endpoint.startsWith('/metrics/historical')) {
+      const params = parseQueryParams(endpoint);
+      const startDate = params.get('startDate');
+      const endDate = params.get('endDate');
+      
+      // Gerar dados históricos mockados
+      const historical: any[] = [];
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const current = new Date(start);
+        
+        while (current <= end) {
+          const dateStr = current.toISOString().split('T')[0];
+          // Gerar valores aleatórios realistas
+          const queueCompleted = Math.floor(Math.random() * 20) + 5;
+          const queueNoShows = Math.floor(Math.random() * 5);
+          const queueCancelled = Math.floor(Math.random() * 3);
+          const reservationsConfirmed = Math.floor(Math.random() * 15) + 3;
+          const reservationsCompleted = Math.floor(Math.random() * 12) + 2;
+          const reservationsNoShows = Math.floor(Math.random() * 3);
+          const totalPeople = queueCompleted * 2.5 + reservationsCompleted * 3;
+          
+          historical.push({
+            date: dateStr,
+            queueCompleted,
+            queueNoShows,
+            queueCancelled,
+            reservationsConfirmed,
+            reservationsCompleted,
+            reservationsNoShows,
+            totalPeople: Math.round(totalPeople),
+          });
+          
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      
+      await delay(300);
+      return historical as T;
+    }
+
+    if (endpoint.startsWith('/metrics/capacity')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const params = parseQueryParams(endpoint);
+      const dateParam = params.get('date') || new Date().toISOString().split('T')[0];
+      const targetDate = new Date(dateParam);
+      targetDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      // Filtrar itens da fila concluídos no dia
+      const queueItems = mockQueue.filter(item => {
+        if (item.status !== QueueStatus.DONE || !item.calledAt) return false;
+        const itemDate = new Date(item.calledAt);
+        return itemDate >= targetDate && itemDate < nextDay;
+      });
+      
+      // Filtrar reservas atendidas no dia
+      const reservations = mockReservations.filter(res => {
+        if (res.status !== ReservationStatus.CHECKED_IN && res.status !== ReservationStatus.COMPLETED) return false;
+        const resDate = new Date(res.date);
+        return resDate >= targetDate && resDate < nextDay;
+      });
+      
+      const totalPeopleServed = 
+        queueItems.reduce((sum, item) => sum + item.partySize, 0) +
+        reservations.reduce((sum, res) => sum + res.partySize, 0);
+      
+      return {
+        date: dateParam,
+        queueItemsServed: queueItems.length,
+        reservationsServed: reservations.length,
+        totalPeopleServed,
       } as T;
     }
 

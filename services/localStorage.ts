@@ -1,5 +1,5 @@
 // Serviço de persistência local usando localStorage
-import { QueueItem, MenuItem, Reservation, Category, PublicLink } from '../types';
+import { QueueItem, MenuItem, Reservation, Category, PublicLink, Customer } from '../types';
 
 const STORAGE_KEYS = {
   QUEUE: 'restoflow_queue',
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   USERS: 'restoflow_users',
   CATEGORIES: 'restoflow_categories',
   PUBLIC_LINKS: 'restoflow_public_links',
+  CUSTOMERS: 'restoflow_customers',
 } as const;
 
 // Função auxiliar para converter strings de data para Date objects
@@ -118,5 +119,12 @@ export const publicLinksStorage = {
   save: (links: PublicLink[]): void => save(STORAGE_KEYS.PUBLIC_LINKS, links),
   load: (defaultValue: PublicLink[] = []): PublicLink[] => load(STORAGE_KEYS.PUBLIC_LINKS, defaultValue),
   clear: (): void => localStorage.removeItem(STORAGE_KEYS.PUBLIC_LINKS),
+};
+
+// Customers
+export const customersStorage = {
+  save: (customers: Customer[]): void => save(STORAGE_KEYS.CUSTOMERS, customers),
+  load: (defaultValue: Customer[] = []): Customer[] => load(STORAGE_KEYS.CUSTOMERS, defaultValue),
+  clear: (): void => localStorage.removeItem(STORAGE_KEYS.CUSTOMERS),
 };
 

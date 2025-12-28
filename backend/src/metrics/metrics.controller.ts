@@ -45,5 +45,19 @@ export class MetricsController {
       date ? new Date(date) : new Date(),
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('historical')
+  async getHistoricalData(
+    @Request() req,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.metricsService.getHistoricalData(
+      req.user.restaurantId,
+      new Date(startDate),
+      new Date(endDate),
+    );
+  }
 }
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { Search, Loader2, Plus, ImageOff } from 'lucide-react';
+import { Search, Loader2, Plus, ImageOff, Filter, X, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../services/api';
 import { MenuItem } from '../../types';
 
@@ -12,6 +12,9 @@ export const PublicMenu: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [sortBy, setSortBy] = useState<'name' | 'price-asc' | 'price-desc'>('name');
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -19,6 +22,12 @@ export const PublicMenu: React.FC = () => {
       try {
         const data = await api.get<MenuItem[]>(`/menu/public/${slug}`);
         setMenu(data);
+        // Calcular range de preços
+        if (data.length > 0) {
+          const prices = data.map(item => item.price);
+          const maxPrice = Math.max(...prices);
+          setPriceRange([0, Math.ceil(maxPrice / 10) * 10]); // Arredondar para próximo múltiplo de 10
+        }
       } catch (error) {
         console.error("Erro ao carregar menu público", error);
       } finally {
@@ -29,11 +38,34 @@ export const PublicMenu: React.FC = () => {
     fetchMenu();
   }, [slug]);
 
-  const filteredItems = menu.filter(item => {
-    const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Obter categorias únicas do menu
+  const availableCategories = useMemo(() => {
+    const cats = new Set(menu.map(item => item.category).filter(Boolean));
+    return ['Todos', ...Array.from(cats)];
+  }, [menu]);
+
+  const filteredItems = useMemo(() => {
+    let filtered = menu.filter(item => {
+      const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      const matchesPrice = item.price >= priceRange[0] && item.price <= priceRange[1];
+      return matchesCategory && matchesSearch && matchesPrice;
+    });
+
+    // Ordenar
+    filtered.sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'price-asc') {
+        return a.price - b.price;
+      } else {
+        return b.price - a.price;
+      }
+    });
+
+    return filtered;
+  }, [menu, activeCategory, searchTerm, priceRange, sortBy]);
 
   if (loading) {
     return (
@@ -58,8 +90,86 @@ export const PublicMenu: React.FC = () => {
           />
         </div>
         
+        <div className="flex gap-2 items-center mb-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`px-4 py-2 rounded-xl border transition-colors flex items-center gap-2 ${
+              showFilters
+                ? 'bg-orange-600 text-white border-orange-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+            title="Filtros avançados"
+          >
+            <SlidersHorizontal size={18} />
+            <span className="text-sm font-medium">Filtros</span>
+          </button>
+        </div>
+
+        {/* Painel de Filtros Avançados */}
+        {showFilters && (
+          <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-4 animate-fade-in mb-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Filtros</h3>
+              <button
+                onClick={() => {
+                  setPriceRange([0, Math.max(500, priceRange[1])]);
+                  setSortBy('name');
+                  setActiveCategory('Todos');
+                  setSearchTerm('');
+                }}
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                Limpar tudo
+              </button>
+            </div>
+
+            {/* Ordenação */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ordenar por</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="name">Nome (A-Z)</option>
+                <option value="price-asc">Preço: Menor para Maior</option>
+                <option value="price-desc">Preço: Maior para Menor</option>
+              </select>
+            </div>
+
+            {/* Faixa de Preço */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Preço: R$ {priceRange[0]} - R$ {priceRange[1]}
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="range"
+                  min="0"
+                  max={priceRange[1] || 500}
+                  value={priceRange[0]}
+                  onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                  className="flex-1"
+                />
+                <input
+                  type="range"
+                  min={priceRange[0]}
+                  max={Math.max(priceRange[1] || 500, 500)}
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                  className="flex-1"
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>R$ 0</span>
+                <span>R$ {priceRange[1]}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-1">
-          {CATEGORIES.map(cat => (
+          {availableCategories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -73,6 +183,13 @@ export const PublicMenu: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Contador de resultados */}
+        {!loading && (
+          <div className="text-sm text-gray-500 text-center pt-2">
+            {filteredItems.length} {filteredItems.length === 1 ? 'item encontrado' : 'itens encontrados'}
+          </div>
+        )}
       </div>
 
       {/* Grid de Cards */}

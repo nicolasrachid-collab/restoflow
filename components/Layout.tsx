@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Menu, Map, CalendarDays, LogOut, Menu as MenuIcon, X, AlertTriangle, Link as LinkIcon, FolderTree, Clock, Settings, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Menu, Map, CalendarDays, LogOut, Menu as MenuIcon, X, AlertTriangle, Link as LinkIcon, FolderTree, Clock, Settings, UserCog, BarChart3, UserCircle } from 'lucide-react';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -8,6 +8,8 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
+    { icon: BarChart3, label: 'Relatórios', path: '/admin/reports' },
+    { icon: UserCircle, label: 'Clientes', path: '/admin/customers' },
     { icon: Users, label: 'Fila de Espera', path: '/admin/queue' },
     { icon: CalendarDays, label: 'Reservas', path: '/admin/reservations' },
     { icon: Menu, label: 'Menu Inteligente', path: '/admin/menu' },
