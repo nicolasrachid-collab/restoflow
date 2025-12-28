@@ -13,6 +13,8 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
 import { AuditModule } from './audit/audit.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { CategoriesModule } from './menu/categories.module';
+import { TimeBlocksModule } from './time-blocks/time-blocks.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -33,6 +35,8 @@ import { AppController } from './app.controller';
     RestaurantsModule,
     AuditModule,
     MetricsModule,
+    TimeBlocksModule,
+    WaitlistModule,
   ],
   controllers: [AppController],
   providers: [],

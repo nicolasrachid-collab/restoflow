@@ -9,7 +9,7 @@ import { generateText, generateMenuImage, editMenuImage } from '../../services/g
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { useResto } from '../../context/RestoContext';
-import { Wand2, ImagePlus, Edit, Plus, Trash2, Utensils } from 'lucide-react';
+import { Wand2, ImagePlus, Edit, Plus, Trash2, Utensils, X } from 'lucide-react';
 
 export const MenuManager: React.FC = () => {
   const toast = useToast();
@@ -38,6 +38,10 @@ export const MenuManager: React.FC = () => {
   const [editingImg, setEditingImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
   const [imgSize, setImgSize] = useState<ImageSize>(ImageSize.SIZE_1K);
+  
+  // Variants State
+  const [newItemVariants, setNewItemVariants] = useState<Array<{ name: string; priceModifier: string; isRequired: boolean }>>([]);
+  const [editItemVariants, setEditItemVariants] = useState<Array<{ id?: string; name: string; priceModifier: string; isRequired: boolean }>>([]);
   
   // Delete confirmation
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -122,12 +126,23 @@ export const MenuManager: React.FC = () => {
         itemData.categoryId = newItemCategoryId;
       }
 
+      // Adicionar variantes se houver
+      if (newItemVariants.length > 0) {
+        itemData.variants = newItemVariants.map((v, index) => ({
+          name: v.name,
+          priceModifier: parseFloat(v.priceModifier) || 0,
+          isRequired: v.isRequired,
+          displayOrder: index,
+        }));
+      }
+
       await api.post('/menu', itemData);
       setNewItemName('');
       setNewItemDesc('');
       setNewItemPrice('');
       setNewItemImage(null);
       setNewItemCategoryId('');
+      setNewItemVariants([]);
       loadData();
       toast.success('Item adicionado ao menu com sucesso!');
     } catch (error: any) {
@@ -144,6 +159,17 @@ export const MenuManager: React.FC = () => {
     setEditItemPrice(item.price.toString());
     setEditItemImage(item.imageUrl || null);
     setEditItemCategoryId((item as any).categoryId || '');
+    // Carregar variantes do item
+    if (item.variants && item.variants.length > 0) {
+      setEditItemVariants(item.variants.map(v => ({
+        id: v.id,
+        name: v.name,
+        priceModifier: v.priceModifier.toString(),
+        isRequired: v.isRequired,
+      })));
+    } else {
+      setEditItemVariants([]);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -163,6 +189,15 @@ export const MenuManager: React.FC = () => {
         updateData.categoryId = null;
       }
 
+      // Adicionar variantes se houver
+      updateData.variants = editItemVariants.map((v, index) => ({
+        id: v.id,
+        name: v.name,
+        priceModifier: parseFloat(v.priceModifier) || 0,
+        isRequired: v.isRequired,
+        displayOrder: index,
+      }));
+
       await api.patch(`/menu/${editingItem.id}`, updateData);
       setEditingItem(null);
       setEditItemName('');
@@ -170,6 +205,7 @@ export const MenuManager: React.FC = () => {
       setEditItemPrice('');
       setEditItemImage(null);
       setEditItemCategoryId('');
+      setEditItemVariants([]);
       loadData();
       toast.success('Item atualizado com sucesso!');
     } catch (error: any) {
@@ -177,6 +213,34 @@ export const MenuManager: React.FC = () => {
       const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao atualizar item';
       toast.error(errorMessage);
     }
+  };
+
+  const handleAddNewVariant = () => {
+    setNewItemVariants([...newItemVariants, { name: '', priceModifier: '0', isRequired: false }]);
+  };
+
+  const handleRemoveNewVariant = (index: number) => {
+    setNewItemVariants(newItemVariants.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateNewVariant = (index: number, field: string, value: any) => {
+    const updated = [...newItemVariants];
+    updated[index] = { ...updated[index], [field]: value };
+    setNewItemVariants(updated);
+  };
+
+  const handleAddEditVariant = () => {
+    setEditItemVariants([...editItemVariants, { name: '', priceModifier: '0', isRequired: false }]);
+  };
+
+  const handleRemoveEditVariant = (index: number) => {
+    setEditItemVariants(editItemVariants.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateEditVariant = (index: number, field: string, value: any) => {
+    const updated = [...editItemVariants];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditItemVariants(updated);
   };
 
   const handleGenerateEditDescription = async () => {
@@ -493,8 +557,65 @@ export const MenuManager: React.FC = () => {
             </div>
           )}
 
+          {/* Variants Section in Edit Modal */}
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="block text-sm font-medium text-gray-700">Variantes</label>
+              <Button size="sm" variant="secondary" onClick={handleAddEditVariant}>
+                <Plus size={14} className="mr-1" /> Adicionar
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mb-2">Ex: Tamanhos, Sabores, Adicionais</p>
+            
+            {editItemVariants.length > 0 && (
+              <div className="space-y-2">
+                {editItemVariants.map((variant, index) => (
+                  <div key={index} className="flex gap-2 items-start p-2 bg-white rounded border">
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="text"
+                        value={variant.name}
+                        onChange={(e) => handleUpdateEditVariant(index, 'name', e.target.value)}
+                        placeholder="Nome da variante (ex: Grande)"
+                        className="w-full px-3 py-1.5 text-sm border rounded"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={variant.priceModifier}
+                          onChange={(e) => handleUpdateEditVariant(index, 'priceModifier', e.target.value)}
+                          placeholder="Preço adicional (R$)"
+                          step="0.01"
+                          className="flex-1 px-3 py-1.5 text-sm border rounded"
+                        />
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={variant.isRequired}
+                            onChange={(e) => handleUpdateEditVariant(index, 'isRequired', e.target.checked)}
+                            className="rounded"
+                          />
+                          Obrigatória
+                        </label>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveEditVariant(index)}
+                      className="p-1 text-red-500 hover:text-red-700"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2 pt-4">
-            <Button variant="ghost" onClick={() => setEditingItem(null)} className="flex-1">
+            <Button variant="ghost" onClick={() => {
+              setEditingItem(null);
+              setEditItemVariants([]);
+            }} className="flex-1">
               Cancelar
             </Button>
             <Button onClick={handleSaveEdit} className="flex-1">

@@ -6,9 +6,10 @@ import { CustomersModule } from '../customers/customers.module';
 import { PublicLinksModule } from '../public-links/public-links.module';
 import { RestaurantsModule } from '../restaurants/restaurants.module';
 import { AuditModule } from '../audit/audit.module';
+import { TimeBlocksModule } from '../time-blocks/time-blocks.module';
 
 @Module({
-  imports: [PrismaModule, CustomersModule, PublicLinksModule, RestaurantsModule, AuditModule],
+  imports: [PrismaModule, CustomersModule, PublicLinksModule, RestaurantsModule, AuditModule, TimeBlocksModule],
   controllers: [ReservationsController],
   providers: [ReservationsService],
 })

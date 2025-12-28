@@ -15,16 +15,24 @@ export const PublicMenu: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
   const [sortBy, setSortBy] = useState<'name' | 'price-asc' | 'price-desc'>('name');
+  // Variantes selecionadas por item: { itemId: { variantId: true } }
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, Record<string, boolean>>>({});
 
   useEffect(() => {
     const fetchMenu = async () => {
       if (!slug) return;
       try {
-        const data = await api.get<MenuItem[]>(`/menu/public/${slug}`);
-        setMenu(data);
-        // Calcular range de preços
-        if (data.length > 0) {
-          const prices = data.map(item => item.price);
+        const response = await api.get<{ categories: any[]; items: MenuItem[] } | MenuItem[]>(`/menu/public/${slug}`);
+        // A resposta pode ser um objeto com categories e items, ou apenas um array
+        const menuData = Array.isArray(response) ? response : (response.items || []);
+        setMenu(menuData);
+        // Calcular range de preços (considerando preço base + variantes)
+        if (menuData.length > 0) {
+          const prices = menuData.map((item: MenuItem) => {
+            const basePrice = item.price;
+            const maxVariantPrice = item.variants?.reduce((max, v) => Math.max(max, v.priceModifier), 0) || 0;
+            return basePrice + maxVariantPrice;
+          });
           const maxPrice = Math.max(...prices);
           setPriceRange([0, Math.ceil(maxPrice / 10) * 10]); // Arredondar para próximo múltiplo de 10
         }
@@ -227,7 +235,16 @@ export const PublicMenu: React.FC = () => {
                
                {/* Preço (Posicionado na imagem para visual moderno) */}
                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-sm font-bold text-gray-900 text-sm border border-gray-100/50">
-                 R$ {Number(item.price).toFixed(2)}
+                 R$ {(() => {
+                   const basePrice = Number(item.price);
+                   const variantsPrice = item.variants?.reduce((sum, variant) => {
+                     if (selectedVariants[item.id]?.[variant.id]) {
+                       return sum + variant.priceModifier;
+                     }
+                     return sum;
+                   }, 0) || 0;
+                   return (basePrice + variantsPrice).toFixed(2);
+                 })()}
                </div>
             </div>
 
@@ -237,15 +254,65 @@ export const PublicMenu: React.FC = () => {
                  {item.name}
                </h3>
                
-               <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed mb-6 flex-1">
+               <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed mb-4 flex-1">
                  {item.description}
                </p>
+
+               {/* Variantes */}
+               {item.variants && item.variants.length > 0 && (
+                 <div className="mb-4 space-y-2">
+                   {item.variants.map((variant) => (
+                     <label 
+                       key={variant.id}
+                       className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                         selectedVariants[item.id]?.[variant.id]
+                           ? 'bg-orange-50 border-orange-300'
+                           : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                       }`}
+                     >
+                       <input
+                         type="checkbox"
+                         checked={selectedVariants[item.id]?.[variant.id] || false}
+                         onChange={(e) => {
+                           const newSelected = { ...selectedVariants };
+                           if (!newSelected[item.id]) newSelected[item.id] = {};
+                           newSelected[item.id][variant.id] = e.target.checked;
+                           setSelectedVariants(newSelected);
+                         }}
+                         className="rounded text-orange-600 focus:ring-orange-500"
+                       />
+                       <span className="text-sm text-gray-700 flex-1">{variant.name}</span>
+                       {variant.priceModifier !== 0 && (
+                         <span className="text-xs font-medium text-gray-600">
+                           {variant.priceModifier > 0 ? '+' : ''}R$ {variant.priceModifier.toFixed(2)}
+                         </span>
+                       )}
+                       {variant.isRequired && (
+                         <span className="text-xs text-orange-600 font-medium">Obrigatória</span>
+                       )}
+                     </label>
+                   ))}
+                 </div>
+               )}
 
                {/* Botão de Adicionar Flutuante no Card */}
                <div className="flex justify-end mt-auto pt-2">
                  <button 
                    className="w-12 h-12 bg-orange-600 text-white rounded-full shadow-lg shadow-orange-200 flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:bg-orange-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-100"
                    aria-label={`Adicionar ${item.name}`}
+                   onClick={() => {
+                     // Validar variantes obrigatórias
+                     if (item.variants) {
+                       const requiredVariants = item.variants.filter(v => v.isRequired);
+                       const hasAllRequired = requiredVariants.every(v => selectedVariants[item.id]?.[v.id]);
+                       if (requiredVariants.length > 0 && !hasAllRequired) {
+                         alert(`Por favor, selecione todas as variantes obrigatórias: ${requiredVariants.map(v => v.name).join(', ')}`);
+                         return;
+                       }
+                     }
+                     // Aqui poderia adicionar ao carrinho
+                     console.log('Adicionar ao carrinho:', item, selectedVariants[item.id]);
+                   }}
                  >
                     <Plus size={24} strokeWidth={2.5} />
                  </button>

@@ -36,4 +36,31 @@ export class MenuController {
   async deleteItem(@Request() req, @Param('id') id: string) {
     return this.menuService.remove(req.user.restaurantId, id);
   }
+
+  // Variantes endpoints
+  @UseGuards(JwtAuthGuard)
+  @Post(':menuItemId/variants')
+  async createVariant(
+    @Request() req,
+    @Param('menuItemId') menuItemId: string,
+    @Body() createVariantDto: any,
+  ) {
+    return this.menuService.createVariant(req.user.restaurantId, menuItemId, createVariantDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('variants/:variantId')
+  async updateVariant(
+    @Request() req,
+    @Param('variantId') variantId: string,
+    @Body() updateVariantDto: any,
+  ) {
+    return this.menuService.updateVariant(req.user.restaurantId, variantId, updateVariantDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('variants/:variantId')
+  async deleteVariant(@Request() req, @Param('variantId') variantId: string) {
+    return this.menuService.deleteVariant(req.user.restaurantId, variantId);
+  }
 }

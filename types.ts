@@ -127,6 +127,32 @@ export interface Reservation {
   customer?: Customer;
 }
 
+export interface TimeBlock {
+  id: string;
+  restaurantId: string;
+  date: Date;
+  startTime?: string; // Formato "HH:mm"
+  endTime?: string; // Formato "HH:mm"
+  reason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Waitlist {
+  id: string;
+  restaurantId: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  partySize: number;
+  preferredDate?: Date;
+  preferredTime?: string;
+  notified: boolean;
+  notifiedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface OperatingHours {
   id: string;
   restaurantId: string;

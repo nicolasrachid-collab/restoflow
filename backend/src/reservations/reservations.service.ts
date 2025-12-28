@@ -4,6 +4,8 @@ import { CustomersService } from '../customers/customers.service';
 import { PublicLinksService } from '../public-links/public-links.service';
 import { RestaurantsService } from '../restaurants/restaurants.service';
 import { AuditService } from '../audit/audit.service';
+import { TimeBlocksService } from '../time-blocks/time-blocks.service';
+import { WaitlistService } from '../waitlist/waitlist.service';
 import { ReservationStatus } from '@prisma/client';
 
 @Injectable()
@@ -14,6 +16,7 @@ export class ReservationsService {
     private publicLinksService: PublicLinksService,
     private restaurantsService: RestaurantsService,
     private auditService: AuditService,
+    private timeBlocksService: TimeBlocksService,
   ) {}
 
   // Admin: List all reservations for the tenant
@@ -65,6 +68,15 @@ export class ReservationsService {
     
     if (reservationDateOnly > maxAdvanceDate) {
       throw new BadRequestException(`A reserva não pode ser feita com mais de ${maxAdvanceDays} dias de antecedência`);
+    }
+
+    // Verificar se o horário está bloqueado
+    const reservationHour = reservationDate.getHours();
+    const reservationMinute = reservationDate.getMinutes();
+    const reservationTime = `${String(reservationHour).padStart(2, '0')}:${String(reservationMinute).padStart(2, '0')}`;
+    const isBlocked = await this.timeBlocksService.isTimeBlocked(restaurantId, reservationDateOnly, reservationTime);
+    if (isBlocked) {
+      throw new BadRequestException('Este horário está bloqueado para reservas');
     }
 
     // Validar limite de pessoas
@@ -197,6 +209,14 @@ export class ReservationsService {
     
     if (reservationTime < dayHours.openTime || reservationTime >= dayHours.closeTime) {
       throw new BadRequestException(`O horário da reserva deve estar entre ${dayHours.openTime} e ${dayHours.closeTime}`);
+    }
+
+    // Verificar se o horário está bloqueado
+    const reservationDateOnly = new Date(reservationDate);
+    reservationDateOnly.setHours(0, 0, 0, 0);
+    const isBlocked = await this.timeBlocksService.isTimeBlocked(restaurant.id, reservationDateOnly, reservationTime);
+    if (isBlocked) {
+      throw new ForbiddenException('Este horário está bloqueado para reservas');
     }
 
     // Validar data não no passado
@@ -359,6 +379,25 @@ export class ReservationsService {
       { status: status, ...updateData },
     );
 
+    // Se a reserva foi cancelada, notificar próxima pessoa da waitlist
+    if (status === ReservationStatus.CANCELLED) {
+      try {
+        const reservationDate = new Date(updated.date);
+        const reservationHour = reservationDate.getHours();
+        const reservationMinute = reservationDate.getMinutes();
+        const reservationTime = `${String(reservationHour).padStart(2, '0')}:${String(reservationMinute).padStart(2, '0')}`;
+        const reservationDateOnly = new Date(reservationDate);
+        reservationDateOnly.setHours(0, 0, 0, 0);
+        
+        // Notificar próxima pessoa da waitlist (assíncrono, não bloqueia)
+        this.waitlistService.notifyNextAvailable(restaurantId, reservationDateOnly, reservationTime)
+          .catch(err => console.error('Erro ao notificar waitlist:', err));
+      } catch (err) {
+        // Não falhar se a notificação da waitlist falhar
+        console.error('Erro ao processar notificação de waitlist:', err);
+      }
+    }
+
     return updated;
   }
 
@@ -423,6 +462,21 @@ export class ReservationsService {
       { status: ReservationStatus.CANCELLED },
       { reason: 'rescheduled', newReservationId: newReservation.id },
     );
+
+    // Notificar próxima pessoa da waitlist sobre a vaga (assíncrono)
+    try {
+      const originalDate = new Date(original.date);
+      const originalHour = originalDate.getHours();
+      const originalMinute = originalDate.getMinutes();
+      const originalTime = `${String(originalHour).padStart(2, '0')}:${String(originalMinute).padStart(2, '0')}`;
+      const originalDateOnly = new Date(originalDate);
+      originalDateOnly.setHours(0, 0, 0, 0);
+      
+      this.waitlistService.notifyNextAvailable(restaurantId, originalDateOnly, originalTime)
+        .catch(err => console.error('Erro ao notificar waitlist:', err));
+    } catch (err) {
+      console.error('Erro ao processar notificação de waitlist:', err);
+    }
 
     return newReservation;
   }
@@ -502,13 +556,17 @@ export class ReservationsService {
         return diffMinutes < 30; // Considerar ocupado se houver reserva em 30 minutos
       });
 
+      // Verificar se o horário está bloqueado
+      const isBlocked = await this.timeBlocksService.isTimeBlocked(restaurant.id, selectedDate, timeString);
+
       // Verificar antecedência mínima
       const now = new Date();
       const minAdvanceHours = restaurant.minReservationAdvanceHours || 2;
       const minAdvanceDate = new Date(now);
       minAdvanceDate.setHours(minAdvanceDate.getHours() + minAdvanceHours);
 
-      if (!hasReservation && currentTime >= minAdvanceDate) {
+      // Adicionar slot apenas se não tiver reserva, não estiver bloqueado e respeitar antecedência mínima
+      if (!hasReservation && !isBlocked && currentTime >= minAdvanceDate) {
         slots.push(timeString);
       }
 

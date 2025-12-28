@@ -1,6 +1,6 @@
 // Dados mockados para desenvolvimento offline (sem backend)
-import { QueueItem, MenuItem, Reservation, QueueStatus, ReservationStatus, Category, PublicLink, Customer } from '../types';
-import { queueStorage, menuStorage, reservationsStorage, restaurantStorage, categoriesStorage, publicLinksStorage, customersStorage } from './localStorage';
+import { QueueItem, MenuItem, Reservation, QueueStatus, ReservationStatus, Category, PublicLink, Customer, TimeBlock, Waitlist } from '../types';
+import { queueStorage, menuStorage, reservationsStorage, restaurantStorage, categoriesStorage, publicLinksStorage, customersStorage, timeBlocksStorage, waitlistStorage } from './localStorage';
 
 // Simula delay de rede
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -564,6 +564,67 @@ const handlePostRequest = async <T = any>(endpoint: string, body?: any): Promise
       return customer as T;
     }
 
+    // Waitlist - PATCH notified (separado para evitar conflito com DELETE)
+    if (endpoint.startsWith('/waitlist/') && endpoint.endsWith('/notified') && body === undefined) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const id = endpoint.split('/waitlist/')[1].replace('/notified', '');
+      const items = waitlistStorage.load();
+      const updated = items.map(item =>
+        item.id === id
+          ? { ...item, notified: true, notifiedAt: new Date(), updatedAt: new Date() }
+          : item
+      );
+      waitlistStorage.save(updated);
+      const updatedItem = updated.find(item => item.id === id);
+      if (!updatedItem) throw { status: 404 };
+      return updatedItem as T;
+    }
+
+    // Time Blocks
+    if (endpoint.startsWith('/time-blocks')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const blocks = timeBlocksStorage.load();
+      
+      if (endpoint === '/time-blocks' && !body) {
+        // GET - Listar todos
+        return blocks as T;
+      } else if (endpoint === '/time-blocks' && body) {
+        // POST - Criar bloqueio
+        const newBlock: TimeBlock = {
+          id: `block-${Date.now()}`,
+          restaurantId: 'restaurant-1',
+          date: new Date(body.date),
+          startTime: body.startTime || undefined,
+          endTime: body.endTime || undefined,
+          reason: body.reason || undefined,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        const updated = [...blocks, newBlock];
+        timeBlocksStorage.save(updated);
+        return newBlock as T;
+      } else if (endpoint.startsWith('/time-blocks/') && body) {
+        // PATCH - Atualizar bloqueio
+        const id = endpoint.split('/time-blocks/')[1];
+        const updated = blocks.map(b => 
+          b.id === id 
+            ? { 
+                ...b, 
+                date: body.date ? new Date(body.date) : b.date,
+                startTime: body.startTime !== undefined ? body.startTime : b.startTime,
+                endTime: body.endTime !== undefined ? body.endTime : b.endTime,
+                reason: body.reason !== undefined ? body.reason : b.reason,
+                updatedAt: new Date() 
+              }
+            : b
+        );
+        timeBlocksStorage.save(updated);
+        const updatedBlock = updated.find(b => b.id === id);
+        if (!updatedBlock) throw { status: 404 };
+        return updatedBlock as T;
+      }
+    }
+
     // Customers - Get by ID
     if (endpoint.startsWith('/customers/') && !endpoint.includes('/find-or-create') && !body) {
       const id = endpoint.split('/customers/')[1];
@@ -738,6 +799,35 @@ export const mockApi: MockApi = {
 
   async get<T = any>(endpoint: string): Promise<T> {
     await delay(300);
+
+    // Waitlist
+    if (endpoint.startsWith('/waitlist')) {
+      const items = waitlistStorage.load();
+      
+      if (endpoint === '/waitlist/stats') {
+        const pending = items.filter(item => !item.notified).length;
+        const notified = items.filter(item => item.notified).length;
+        return {
+          total: items.length,
+          pending,
+          notified,
+        } as T;
+      }
+      
+      if (!isAuthenticated()) throw { status: 401 };
+      
+      // GET - Listar
+      const includeNotified = parseQueryParams(endpoint).get('includeNotified') === 'true';
+      const filtered = includeNotified ? items : items.filter(item => !item.notified);
+      return filtered as T;
+    }
+
+    // Time Blocks
+    if (endpoint.startsWith('/time-blocks')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const blocks = timeBlocksStorage.load();
+      return blocks as T;
+    }
 
     // Auth check
     if (endpoint === '/auth/me') {
@@ -1077,6 +1167,16 @@ export const mockApi: MockApi = {
         return { success: true } as T;
       }
       throw { status: 404 };
+    }
+
+    // Time Blocks - Delete
+    if (endpoint.startsWith('/time-blocks/')) {
+      if (!isAuthenticated()) throw { status: 401 };
+      const id = endpoint.split('/time-blocks/')[1];
+      const blocks = timeBlocksStorage.load();
+      const filtered = blocks.filter(b => b.id !== id);
+      timeBlocksStorage.save(filtered);
+      return { success: true } as T;
     }
 
     throw { status: 404 };

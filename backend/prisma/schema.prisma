@@ -68,6 +68,8 @@ model Restaurant {
   operatingHours          OperatingHours[]
   categories              Category[]
   auditLogs               AuditLog[]
+  timeBlocks              TimeBlock[]
+  waitlist                Waitlist[]
   createdAt               DateTime        @default(now()) @map("created_at")
   updatedAt               DateTime        @updatedAt @map("updated_at")
 
@@ -225,4 +227,38 @@ model Reservation {
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
   @@map("reservations")
+}
+
+model TimeBlock {
+  id           String     @id @default(uuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  date         DateTime   // Data do bloqueio
+  startTime    String?    @map("start_time") // Formato "HH:mm" (null = dia inteiro)
+  endTime      String?    @map("end_time") // Formato "HH:mm" (null = até fim do dia)
+  reason       String?    // Motivo do bloqueio (opcional)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([restaurantId, date])
+  @@map("time_blocks")
+}
+
+model Waitlist {
+  id           String            @id @default(uuid())
+  restaurantId String            @map("restaurant_id")
+  restaurant   Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  customerName String            @map("customer_name")
+  phone        String
+  email        String?
+  partySize    Int               @map("party_size")
+  preferredDate DateTime?        @map("preferred_date") // Data preferida (opcional)
+  preferredTime String?          @map("preferred_time") // Horário preferido (opcional)
+  notified     Boolean           @default(false) // Se já foi notificado
+  notifiedAt   DateTime?         @map("notified_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  @@index([restaurantId, createdAt])
+  @@map("waitlist")
 }

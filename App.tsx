@@ -5,6 +5,7 @@ import { PublicLayout } from './components/PublicLayout';
 import { RestoProvider } from './context/RestoContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer } from './components/ui/ToastContainer';
 
 // Admin Pages
@@ -16,6 +17,8 @@ import { Reservations } from './pages/admin/Reservations';
 import { PublicLinks } from './pages/admin/PublicLinks';
 import { Categories } from './pages/admin/Categories';
 import { OperatingHours } from './pages/admin/OperatingHours';
+import { TimeBlocks } from './pages/admin/TimeBlocks';
+import { WaitlistPage } from './pages/admin/Waitlist';
 import { RestaurantSettings } from './pages/admin/RestaurantSettings';
 import { Users } from './pages/admin/Users';
 import { Reports } from './pages/admin/Reports';
@@ -60,6 +63,8 @@ const AppRoutes: React.FC = () => {
         <Route path="/admin/menu" element={<ProtectedRoute><AdminLayout><MenuManager /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/categories" element={<ProtectedRoute><AdminLayout><Categories /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/operating-hours" element={<ProtectedRoute><AdminLayout><OperatingHours /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/time-blocks" element={<ProtectedRoute><AdminLayout><TimeBlocks /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/waitlist" element={<ProtectedRoute><AdminLayout><WaitlistPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/insights" element={<ProtectedRoute><AdminLayout><MarketInsights /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/links" element={<ProtectedRoute><AdminLayout><PublicLinks /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/settings" element={<ProtectedRoute><AdminLayout><RestaurantSettings /></AdminLayout></ProtectedRoute>} />
@@ -76,16 +81,18 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <RestoProvider>
-          <BrowserRouter>
-            <AppRoutes />
-            <ToastContainer />
-          </BrowserRouter>
-        </RestoProvider>
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <RestoProvider>
+            <BrowserRouter>
+              <AppRoutes />
+              <ToastContainer />
+            </BrowserRouter>
+          </RestoProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

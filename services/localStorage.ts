@@ -1,5 +1,5 @@
 // Serviço de persistência local usando localStorage
-import { QueueItem, MenuItem, Reservation, Category, PublicLink, Customer } from '../types';
+import { QueueItem, MenuItem, Reservation, Category, PublicLink, Customer, TimeBlock, Waitlist } from '../types';
 
 const STORAGE_KEYS = {
   QUEUE: 'restoflow_queue',
@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   CATEGORIES: 'restoflow_categories',
   PUBLIC_LINKS: 'restoflow_public_links',
   CUSTOMERS: 'restoflow_customers',
+  TIME_BLOCKS: 'restoflow_time_blocks',
+  WAITLIST: 'restoflow_waitlist',
 } as const;
 
 // Função auxiliar para converter strings de data para Date objects
@@ -126,5 +128,19 @@ export const customersStorage = {
   save: (customers: Customer[]): void => save(STORAGE_KEYS.CUSTOMERS, customers),
   load: (defaultValue: Customer[] = []): Customer[] => load(STORAGE_KEYS.CUSTOMERS, defaultValue),
   clear: (): void => localStorage.removeItem(STORAGE_KEYS.CUSTOMERS),
+};
+
+// Time Blocks
+export const timeBlocksStorage = {
+  save: (blocks: TimeBlock[]): void => save(STORAGE_KEYS.TIME_BLOCKS, blocks),
+  load: (defaultValue: TimeBlock[] = []): TimeBlock[] => load(STORAGE_KEYS.TIME_BLOCKS, defaultValue),
+  clear: (): void => localStorage.removeItem(STORAGE_KEYS.TIME_BLOCKS),
+};
+
+// Waitlist
+export const waitlistStorage = {
+  save: (items: Waitlist[]): void => save(STORAGE_KEYS.WAITLIST, items),
+  load: (defaultValue: Waitlist[] = []): Waitlist[] => load(STORAGE_KEYS.WAITLIST, defaultValue),
+  clear: (): void => localStorage.removeItem(STORAGE_KEYS.WAITLIST),
 };
 
